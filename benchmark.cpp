@@ -1,8 +1,7 @@
+#include "readwrite.h"
 #include "Transaction.h"
 #include <iostream>
 #include <chrono>
-#include <vector>
-#include <string>
 using namespace std;
 using namespace std::chrono;
 
@@ -18,76 +17,94 @@ double ukurWaktu(Func f, int ulang = 5) {
     return total / ulang;
 }
 
-void benchmark(vector<Transaction>& data, int n, const string& label) {
-    vector<Transaction> subset(data.begin(), data.begin() + min(n, (int)data.size()));
+void benchmark(int n, const string& label) {
+    vector<Transaction> backup = transactions;
+    transactions = vector<Transaction>(backup.begin(), backup.begin() + min(n, (int)backup.size()));
 
     cout << "\n============================\n";
     cout << "Ukuran data: " << label << "\n";
     cout << "============================\n";
 
+    string targetInvoice = transactions[n/2].invoiceId;
+    string targetCust    = transactions[n/2].customerId;
+    string targetStock   = transactions[n/2].stockCode;
+
+    // INSERT
     Transaction dummy;
-    dummy.transactionID = "TEST001";
-    dummy.customerID    = "C9999";
-    dummy.productID     = "P9999";
-    dummy.productName   = "Test Product";
-    dummy.category      = "Test";
-    dummy.quantity      = 1;
-    dummy.price         = 9.99;
-    dummy.date          = "2024-01-01";
+    dummy.invoiceId   = "TEST999";
+    dummy.stockCode   = "S9999";
+    dummy.description = "Test Product";
+    dummy.quantity    = 1;
+    dummy.invoiceDate = "2024-01-01";
+    dummy.price       = 9.99;
+    dummy.customerId  = "C9999";
+    dummy.category    = "Test";
 
     double t_insert = ukurWaktu([&]() {
-        subset.push_back(dummy);
-        subset.pop_back();
+        insertTransaction(dummy);
+        transactions.pop_back();
     });
-    cout << "Insert (1 record)   : " << t_insert << " ms\n";
+    cout << "Insert (1 record)    : " << t_insert << " ms\n";
 
-    string targetInvoice = subset[n/2].transactionID;
+    // SEARCH INVOICE ID
     double t_invoice = ukurWaktu([&]() {
-        for (auto& t : subset)
-            if (t.transactionID == targetInvoice) break;
+        searchByInvoiceId(targetInvoice);
     });
-    cout << "Search Invoice      : " << t_invoice << " ms\n";
+    cout << "Search Invoice ID    : " << t_invoice << " ms\n";
 
-    string targetCust = subset[n/2].customerID;
+    // SEARCH CUSTOMER ID
     double t_cust = ukurWaktu([&]() {
-        vector<Transaction> hasil;
-        for (auto& t : subset)
-            if (t.customerID == targetCust) hasil.push_back(t);
+        searchByCustomerId(targetCust);
     });
-    cout << "Search Customer ID  : " << t_cust << " ms\n";
+    cout << "Search Customer ID   : " << t_cust << " ms\n";
 
-    string targetProd = subset[n/2].productID;
-    double t_prod = ukurWaktu([&]() {
-        vector<Transaction> hasil;
-        for (auto& t : subset)
-            if (t.productID == targetProd) hasil.push_back(t);
+    // SEARCH STOCK CODE
+    double t_stock = ukurWaktu([&]() {
+        searchByStockCode(targetStock);
     });
-    cout << "Search Product ID   : " << t_prod << " ms\n";
+    cout << "Search Stock Code    : " << t_stock << " ms\n";
 
-    string targetCat = subset[n/2].category;
-    double t_cat = ukurWaktu([&]() {
-        vector<Transaction> hasil;
-        for (auto& t : subset)
-            if (t.category == targetCat) hasil.push_back(t);
+    // UPDATE
+    insertTransaction(dummy);
+    Transaction updated = dummy;
+    updated.description = "Updated Product";
+    updated.price = 19.99;
+    double t_update = ukurWaktu([&]() {
+        updateByInvoiceId(dummy.invoiceId, updated);
     });
-    cout << "Search Category     : " << t_cat << " ms\n";
+    deleteByInvoiceId(dummy.invoiceId);
+    cout << "Update (by InvoiceID): " << t_update << " ms\n";
+
+    // DELETE
+    double t_delete = ukurWaktu([&]() {
+        insertTransaction(dummy);
+        deleteByInvoiceId(dummy.invoiceId);
+    });
+    cout << "Delete (by InvoiceID): " << t_delete << " ms\n";
+
+    transactions = backup;
 }
 
 int main() {
     cout << "Mengukur Load CSV...\n";
     double t_load = ukurWaktu([&]() {
-        vector<Transaction> tmp = loadCSV("transactions.csv");
+        transactions.clear();
+        loadCSV("transactions.csv");
     });
-    cout << "Load CSV (semua)    : " << t_load << " ms\n";
+    cout << "Load CSV             : " << t_load << " ms\n";
 
-    vector<Transaction> data = loadCSV("transactions.csv");
-    cout << "Data dimuat         : " << data.size() << " baris\n";
+    transactions.clear();
+    int loaded = loadCSV("transactions.csv");
+    cout << "Data dimuat          : " << loaded << " baris\n";
 
-    benchmark(data, 100,    "100");
-    benchmark(data, 500,    "500");
-    benchmark(data, 1000,   "1.000");
-    benchmark(data, 10000,  "100.000");
-    benchmark(data, (int)data.size(), "semua data");
+    benchmark(100,  "100");
+    benchmark(1000,  "1.000");
+    benchmark(10000, "10.000");
+    benchmark(100000, "100.000");
+
+    cout << "\n============================\n";
+    cout << "SELESAI\n";
+    cout << "============================\n";
 
     return 0;
 }
