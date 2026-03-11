@@ -1,6 +1,0 @@
-Query  : Search Invoice: 1234
-Total  : 100001 transaksi
-Hasil  : 1 ditemukan
-Waktu  : 15 ms
-
-1. 1234 | 1235 | Meja 1 | Qty: 2 | 12/12/12 23.44 | Rp 1.23 | Cust: 1234 | test
