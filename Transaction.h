@@ -1,127 +1,102 @@
 #ifndef TRANSACTION_H
 #define TRANSACTION_H
 
-#include <fstream>
-#include <sstream>
 #include <vector>
 #include <string>
-#include <set>
-#include <ctime>
+#include <iostream>
 
 using namespace std;
 
 struct Transaction {
-    string transactionID;
-    string customerID;
-    string productID;
-    string productName;
-    string category;
+    string invoiceId;
+    string stockCode;
+    string description;
     int    quantity;
+    string invoiceDate;
     double price;
-    string date;
+    string customerId;
+    string category;
 };
 
-string waktuSekarang() {
-    time_t now = time(nullptr);
-    char buf[32];
-    strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", localtime(&now));
-    return string(buf);
+vector<Transaction> transactions;
+
+// Menyimpan waktu eksekusi tiap operasi (ms)
+long long lastInsertTime = 0;
+long long lastSearchTime = 0;
+long long lastUpdateTime = 0;
+long long lastDeleteTime = 0;
+long long lastShowTime   = 0;
+
+void insertTransaction(Transaction t) {
+    transactions.push_back(t);
 }
 
-void tulisLog(string isi) {
-    ofstream f("output_log.txt", ios::trunc);
-    f << isi;
-    f.close();
-}
-
-vector<Transaction> loadCSV(string filename) {
-    vector<Transaction> data;
-    ifstream file(filename);
-    string line;
-    getline(file, line); // skip header
-
-    while (getline(file, line)) {
-        stringstream ss(line);
-        string inv, stock, desc, qty, tgl, harga, cust, cat;
-
-        getline(ss, inv,   ';');
-        getline(ss, stock, ';');
-        getline(ss, desc,  ';');
-        getline(ss, qty,   ';');
-        getline(ss, tgl,   ';');
-        getline(ss, harga, ';');
-        getline(ss, cust,  ';');
-        getline(ss, cat,   ';');
-
-        Transaction t;
-        t.transactionID = inv;
-        t.productID     = stock;
-        t.productName   = desc;
-        t.quantity      = stoi(qty);
-        t.price         = stod(harga);
-        t.date          = tgl;
-        t.customerID    = cust;
-        t.category      = cat;
-
-        data.push_back(t);
+void tampilSemuaTransaksi() {
+    vector<Transaction>::iterator it;
+    int no = 1;
+    for (it = transactions.begin(); it != transactions.end(); ++it) {
+        cout << no++ << ". "
+             << it->invoiceId   << " | "
+             << it->stockCode   << " | "
+             << it->description << " | Qty: "
+             << it->quantity    << " | "
+             << it->invoiceDate << " | Rp "
+             << it->price       << " | Cust: "
+             << it->customerId  << " | "
+             << it->category    << "\n";
     }
-
-    file.close();
-    return data;
 }
 
-void insertData(vector<Transaction>& data, Transaction t) {
-    data.push_back(t);
-    tulisLog("\n[" + waktuSekarang() + "] INSERT\n" +
-             t.transactionID + " | " + t.customerID + " | " + t.productID +
-             " | " + t.productName + " | " + t.category +
-             " | " + to_string(t.quantity) + " | " + t.date + "\n");
-}
-
-vector<Transaction> cariInvoice(vector<Transaction> data, string id) {
+vector<Transaction> searchByInvoiceId(string id) {
     vector<Transaction> hasil;
-    for (auto t : data)
-        if (t.transactionID == id) hasil.push_back(t);
-
-    tulisLog("\n[" + waktuSekarang() + "] SEARCH INVOICE: " + id + "\n" +
-             "Ditemukan " + to_string(hasil.size()) + " baris\n");
+    vector<Transaction>::iterator it;
+    for (it = transactions.begin(); it != transactions.end(); ++it) {
+        if (it->invoiceId == id)
+            hasil.push_back(*it);
+    }
     return hasil;
 }
 
-vector<Transaction> cariCustomer(vector<Transaction> data, string id) {
+vector<Transaction> searchByCustomerId(string id) {
     vector<Transaction> hasil;
-    for (auto t : data)
-        if (t.customerID == id) hasil.push_back(t);
-
-    tulisLog("\n[" + waktuSekarang() + "] SEARCH CUSTOMER: " + id + "\n" +
-             "Ditemukan " + to_string(hasil.size()) + " transaksi\n");
+    vector<Transaction>::iterator it;
+    for (it = transactions.begin(); it != transactions.end(); ++it) {
+        if (it->customerId == id)
+            hasil.push_back(*it);
+    }
     return hasil;
 }
 
-vector<Transaction> cariProduct(vector<Transaction> data, string id) {
+vector<Transaction> searchByStockCode(string code) {
     vector<Transaction> hasil;
-    for (auto t : data)
-        if (t.productID == id) hasil.push_back(t);
-
-    tulisLog("\n[" + waktuSekarang() + "] SEARCH PRODUCT: " + id + "\n" +
-             "Ditemukan " + to_string(hasil.size()) + " transaksi\n");
+    vector<Transaction>::iterator it;
+    for (it = transactions.begin(); it != transactions.end(); ++it) {
+        if (it->stockCode == code)
+            hasil.push_back(*it);
+    }
     return hasil;
 }
 
-vector<Transaction> cariCategory(vector<Transaction> data, string cat) {
-    vector<Transaction> hasil;
-    for (auto t : data)
-        if (t.category == cat) hasil.push_back(t);
-
-    tulisLog("\n[" + waktuSekarang() + "] SEARCH CATEGORY: " + cat + "\n" +
-             "Ditemukan " + to_string(hasil.size()) + " transaksi\n");
-    return hasil;
+bool updateByInvoiceId(string id, Transaction updated) {
+    vector<Transaction>::iterator it;
+    for (it = transactions.begin(); it != transactions.end(); ++it) {
+        if (it->invoiceId == id) {
+            *it = updated;
+            return true;
+        }
+    }
+    return false;
 }
 
-set<string> getDaftarKategori(vector<Transaction> data) {
-    set<string> cats;
-    for (auto t : data) cats.insert(t.category);
-    return cats;
+bool deleteByInvoiceId(string id) {
+    vector<Transaction>::iterator it;
+    for (it = transactions.begin(); it != transactions.end(); ++it) {
+        if (it->invoiceId == id) {
+            transactions.erase(it);
+            return true;
+        }
+    }
+    return false;
 }
 
 #endif
