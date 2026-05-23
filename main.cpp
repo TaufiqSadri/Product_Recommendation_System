@@ -3,6 +3,7 @@
 #include <chrono>
 #include <sstream>
 #include <limits>
+#include <iomanip>
 #include "readwrite.h"
 
 #define CSV_FILE    "transactions.csv"
@@ -14,9 +15,14 @@ chrono::high_resolution_clock::time_point startTimer() {
     return chrono::high_resolution_clock::now();
 }
 
-long long stopTimer(chrono::high_resolution_clock::time_point start) {
+double stopTimer(chrono::high_resolution_clock::time_point start) {
     auto end = chrono::high_resolution_clock::now();
-    return chrono::duration_cast<chrono::milliseconds>(end - start).count();
+    long long us = chrono::duration_cast<chrono::microseconds>(end - start).count();
+    return us / 1000.0;
+}
+
+void printWaktu(double ms) {
+    cout << "waktu = " << fixed << setprecision(3) << ms << " ms\n";
 }
 
 void printMenu() {
@@ -39,7 +45,7 @@ int main() {
     cout << "[LOADING] Membaca " << CSV_FILE << " ...\n";
     auto t0 = startTimer();
     int loaded = loadCSV(CSV_FILE);
-    long long durLoad = stopTimer(t0);
+    double durLoad = stopTimer(t0);
 
     if (loaded == 0) {
         cerr << "[ERROR] Gagal memuat data. Pastikan " << CSV_FILE << " ada di folder ini.\n";
@@ -47,7 +53,7 @@ int main() {
     }
 
     cout << "Jumlah transaksi : " << loaded << "\n";
-    cout << "Waktu load       : " << durLoad << " ms\n";
+    cout << "Waktu load       : " << fixed << setprecision(3) << durLoad << " ms\n";
 
     int pilih = -1;
     do {
@@ -65,7 +71,7 @@ int main() {
             auto t = startTimer();
             tampilSemuaTransaksi();
             lastShowTime = stopTimer(t);
-            cout << "waktu = " << lastShowTime << " ms\n";
+            printWaktu(lastShowTime);
             break;
         }
         case 2: {
@@ -95,7 +101,7 @@ int main() {
             insertTransaction(t);
             lastInsertTime = stopTimer(ts);
             cout << "[OK] Berhasil ditambahkan\n";
-            cout << "waktu = " << lastInsertTime << " ms\n";
+            printWaktu(lastInsertTime);
             cout << "[INFO] Total sekarang: " << transactions.size() << " transaksi (CSV tidak berubah)\n";
             break;
         }
@@ -106,7 +112,7 @@ int main() {
             vector<Transaction> hasil = searchByInvoiceId(trim(id));
             lastSearchTime = stopTimer(t);
             writeOutput("Search Invoice: " + trim(id), hasil, lastSearchTime, OUTPUT_FILE);
-            cout << "waktu = " << lastSearchTime << " ms\n";
+            printWaktu(lastSearchTime);
             break;
         }
         case 4: {
@@ -116,7 +122,7 @@ int main() {
             vector<Transaction> hasil = searchByCustomerId(trim(id));
             lastSearchTime = stopTimer(t);
             writeOutput("Search Customer: " + trim(id), hasil, lastSearchTime, OUTPUT_FILE);
-            cout << "waktu = " << lastSearchTime << " ms\n";
+            printWaktu(lastSearchTime);
             break;
         }
         case 5: {
@@ -126,7 +132,7 @@ int main() {
             vector<Transaction> hasil = searchByStockCode(trim(id));
             lastSearchTime = stopTimer(t);
             writeOutput("Search Stock: " + trim(id), hasil, lastSearchTime, OUTPUT_FILE);
-            cout << "waktu = " << lastSearchTime << " ms\n";
+            printWaktu(lastSearchTime);
             break;
         }
         case 6: {
@@ -141,7 +147,6 @@ int main() {
                 break;
             }
 
-            // Tampilkan data lama dulu
             cout << "\nData saat ini:\n";
             cout << "  Stock Code  : " << cek[0].stockCode   << "\n";
             cout << "  Description : " << cek[0].description << "\n";
@@ -153,9 +158,9 @@ int main() {
 
             cout << "\nMasukkan data baru (kosongkan jika tidak ingin diubah):\n";
 
-            Transaction updated = cek[0]; // salin data lama dulu
-
+            Transaction updated = cek[0];
             string input;
+
             cout << "Stock Code  : "; getline(cin, input);
             if (!trim(input).empty()) updated.stockCode = trim(input);
 
@@ -183,7 +188,7 @@ int main() {
 
             if (ok) cout << "[OK] Transaksi berhasil diupdate\n";
             else    cout << "[ERROR] Gagal mengupdate transaksi.\n";
-            cout << "waktu = " << lastUpdateTime << " ms\n";
+            printWaktu(lastUpdateTime);
             break;
         }
         case 7: {
@@ -202,17 +207,17 @@ int main() {
             } else {
                 cout << "[INFO] Invoice ID \"" << id << "\" tidak ditemukan.\n";
             }
-            cout << "waktu = " << lastDeleteTime << " ms\n";
+            printWaktu(lastDeleteTime);
             break;
         }
         case 8: {
             cout << "\nTotal Data : " << transactions.size() << "\n\n";
             cout << "Execution Time Statistics (ms)\n";
-            cout << "Insert Time : " << lastInsertTime << "\n";
-            cout << "Search Time : " << lastSearchTime << "\n";
-            cout << "Update Time : " << lastUpdateTime << "\n";
-            cout << "Delete Time : " << lastDeleteTime << "\n";
-            cout << "Show Time   : " << lastShowTime   << "\n";
+            cout << "Insert Time : " << fixed << setprecision(3) << lastInsertTime << "\n";
+            cout << "Search Time : " << fixed << setprecision(3) << lastSearchTime << "\n";
+            cout << "Update Time : " << fixed << setprecision(3) << lastUpdateTime << "\n";
+            cout << "Delete Time : " << fixed << setprecision(3) << lastDeleteTime << "\n";
+            cout << "Show Time   : " << fixed << setprecision(3) << lastShowTime   << "\n";
             break;
         }
         case 0:

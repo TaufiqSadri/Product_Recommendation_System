@@ -21,11 +21,11 @@ struct Transaction {
 vector<Transaction> transactions;
 
 // Menyimpan waktu eksekusi tiap operasi (ms)
-long long lastInsertTime = 0;
-long long lastSearchTime = 0;
-long long lastUpdateTime = 0;
-long long lastDeleteTime = 0;
-long long lastShowTime   = 0;
+double lastInsertTime = 0;
+double lastSearchTime = 0;
+double lastUpdateTime = 0;
+double lastDeleteTime = 0;
+double lastShowTime   = 0;
 
 void insertTransaction(Transaction t) {
     transactions.push_back(t);

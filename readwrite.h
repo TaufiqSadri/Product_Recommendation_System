@@ -42,6 +42,7 @@ int loadCSV(string filename) {
 
     int count = 0;
     while (getline(file, line)) {
+        //  if (count >= 10000) break;
         if (trim(line).empty()) continue;
 
         stringstream ss(line);
