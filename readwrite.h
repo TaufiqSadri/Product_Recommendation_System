@@ -5,7 +5,9 @@
 #include <fstream>
 #include <sstream>
 #include <string>
-#include "transaction.h"
+#include <chrono>
+#include <iomanip>
+#include "Transaction.h"
 
 using namespace std;
 
@@ -16,7 +18,7 @@ string trim(string s) {
     return s.substr(start, end - start + 1);
 }
 
-string formatTransaction(Transaction t, int no) {
+string formatTransaction(const Transaction& t, int no) {
     ostringstream oss;
     oss << no << ". "
         << t.invoiceId   << " | "
@@ -28,6 +30,13 @@ string formatTransaction(Transaction t, int no) {
         << t.customerId  << " | "
         << t.category;
     return oss.str();
+}
+
+void printOutputStatus(string outputFile, bool saved) {
+    if (saved)
+        cout << "[OK] Hasil disimpan ke " << outputFile << "\n";
+    else
+        cerr << "[ERROR] Gagal menulis file: " << outputFile << "\n";
 }
 
 int loadCSV(string filename) {
@@ -81,44 +90,108 @@ int loadCSV(string filename) {
     return count;
 }
 
-void writeOutput(string title, vector<Transaction> hasil, long long durasi, string outputFile) {
+double writeAllTransactionsOutput(string outputFile) {
+    auto start = chrono::high_resolution_clock::now();
+
+    ostringstream body;
+    int no = 1;
+    for (vector<Transaction>::iterator it = transactions.begin(); it != transactions.end(); ++it) {
+        body << formatTransaction(*it, no++) << "\n";
+    }
+
+    auto end = chrono::high_resolution_clock::now();
+    long long us = chrono::duration_cast<chrono::microseconds>(end - start).count();
+    double durasi = us / 1000.0;
+
+    ofstream out(outputFile, ios::trunc);
+    if (out.is_open()) {
+        out << "Query  : Semua Transaksi\n";
+        out << "Total  : " << transactions.size() << " transaksi\n";
+        out << "Waktu  : " << fixed << setprecision(3) << durasi << " ms\n\n";
+        out << body.str();
+        out.close();
+        printOutputStatus(outputFile, true);
+    } else {
+        printOutputStatus(outputFile, false);
+    }
+
+    return durasi;
+}
+
+void writeOutput(string title, const vector<Transaction>& hasil, double durasi, string outputFile) {
     ofstream out(outputFile, ios::trunc);
     ostringstream content;
 
     content << "Query  : " << title << "\n";
     content << "Total  : " << transactions.size() << " transaksi\n";
     content << "Hasil  : " << hasil.size() << " ditemukan\n";
-    content << "Waktu  : " << durasi << " ms\n\n";
+    content << "Waktu  : " << fixed << setprecision(3) << durasi << " ms\n\n";
 
     if (hasil.empty()) {
         content << "Tidak ada data ditemukan.\n";
     } else {
         int no = 1;
-        vector<Transaction>::iterator it;
+        vector<Transaction>::const_iterator it;
         for (it = hasil.begin(); it != hasil.end(); ++it)
             content << formatTransaction(*it, no++) << "\n";
     }
 
-    cout << content.str();
     if (out.is_open()) {
         out << content.str();
         out.close();
+        printOutputStatus(outputFile, true);
+    } else {
+        printOutputStatus(outputFile, false);
     }
 }
 
-void writeOutputRaw(string title, string body, long long durasi, string outputFile) {
+void writeOutputRaw(string title, string body, double durasi, string outputFile) {
     ofstream out(outputFile, ios::trunc);
     ostringstream content;
 
     content << "Query  : " << title << "\n";
     content << "Total  : " << transactions.size() << " transaksi\n";
-    content << "Waktu  : " << durasi << " ms\n\n";
+    content << "Waktu  : " << fixed << setprecision(3) << durasi << " ms\n\n";
     content << body;
 
-    cout << content.str();
     if (out.is_open()) {
         out << content.str();
         out.close();
+        printOutputStatus(outputFile, true);
+    } else {
+        printOutputStatus(outputFile, false);
+    }
+}
+
+void writeRecommendationOutput(string title, const vector<ProductSummary>& hasil, double durasi, string outputFile) {
+    ofstream out(outputFile, ios::trunc);
+    ostringstream content;
+
+    content << "Query  : " << title << "\n";
+    content << "Total  : " << transactions.size() << " transaksi\n";
+    content << "Hasil  : " << hasil.size() << " produk\n";
+    content << "Waktu  : " << fixed << setprecision(3) << durasi << " ms\n\n";
+
+    if (hasil.empty()) {
+        content << "Tidak ada rekomendasi ditemukan.\n";
+    } else {
+        int no = 1;
+        for (ProductSummary item : hasil) {
+            content << no++ << ". "
+                    << item.stockCode << " | "
+                    << item.description << " | "
+                    << item.category << " | Score: "
+                    << item.totalQuantity << " | Transaksi: "
+                    << item.transactionCount << "\n";
+        }
+    }
+
+    if (out.is_open()) {
+        out << content.str();
+        out.close();
+        printOutputStatus(outputFile, true);
+    } else {
+        printOutputStatus(outputFile, false);
     }
 }
 
