@@ -32,9 +32,10 @@ void printMenu() {
     cout << "[3] Search Transaksi\n";
     cout << "[4] Update Transaksi\n";
     cout << "[5] Delete Transaksi\n";
-    cout << "[6] Rekomendasi Top-N Produk Terlaris\n";
+    cout << "[6] Rekomendasi Top-N Produk Paling Sering Dibeli\n";
     cout << "[7] Rekomendasi Frequently Bought Together\n";
-    cout << "[8] Statistik Eksekusi\n";
+    cout << "[8] Rekomendasi Berdasarkan Customer ID\n";
+    cout << "[9] Statistik Eksekusi\n";
     cout << "[0] Keluar\n";
     cout << "Pilih: ";
 }
@@ -420,7 +421,7 @@ void runDeleteMenu() {
 }
 
 void runTopNMenu() {
-    int method = inputMethod("REKOMENDASI TOP-N PRODUK TERLARIS");
+    int method = inputMethod("REKOMENDASI TOP-N PRODUK PALING SERING DIBELI");
 
     if (method < 1 || method > 3) {
         cout << "[ERROR] Pilihan metode tidak valid.\n";
@@ -434,7 +435,7 @@ void runTopNMenu() {
         auto t = startTimer();
         vector<ProductSummary> hasil = getTopNProductsVector(n);
         lastRecommendationTime = stopTimer(t);
-        writeRecommendationOutput("Top-" + to_string(n) + " Produk Terlaris - Vector", hasil, lastRecommendationTime, OUTPUT_FILE);
+        writeRecommendationOutput("Top-" + to_string(n) + " Produk Paling Sering Dibeli - Vector", hasil, lastRecommendationTime, OUTPUT_FILE, "Frekuensi Transaksi", "Total Qty");
         printWaktu(lastRecommendationTime);
         return;
     }
@@ -443,7 +444,7 @@ void runTopNMenu() {
         auto t = startTimer();
         vector<ProductSummary> hasil = getTopNProductsHash(n);
         lastHashRecommendationTime = stopTimer(t);
-        writeRecommendationOutput("Top-" + to_string(n) + " Produk Terlaris - Hash Table", hasil, lastHashRecommendationTime, OUTPUT_FILE);
+        writeRecommendationOutput("Top-" + to_string(n) + " Produk Paling Sering Dibeli - Hash Table", hasil, lastHashRecommendationTime, OUTPUT_FILE, "Frekuensi Transaksi", "Total Qty");
         printWaktu(lastHashRecommendationTime);
         return;
     }
@@ -456,7 +457,7 @@ void runTopNMenu() {
     vector<ProductSummary> hasilHash = getTopNProductsHash(n);
     lastHashRecommendationTime = stopTimer(th);
 
-    writeMethodComparison("Top-" + to_string(n) + " Produk Terlaris", "Hasil",
+    writeMethodComparison("Top-" + to_string(n) + " Produk Paling Sering Dibeli", "Hasil",
                           to_string(hasilVector.size()) + " produk", lastRecommendationTime,
                           to_string(hasilHash.size()) + " produk", lastHashRecommendationTime);
     printWaktu(lastRecommendationTime + lastHashRecommendationTime);
@@ -482,7 +483,7 @@ void runBoughtTogetherMenu() {
         auto t = startTimer();
         vector<ProductSummary> hasil = getFrequentlyBoughtTogetherVector(stockCode, n);
         lastRecommendationTime = stopTimer(t);
-        writeRecommendationOutput("Frequently Bought Together - Vector untuk " + stockCode, hasil, lastRecommendationTime, OUTPUT_FILE);
+        writeRecommendationOutput("Frequently Bought Together - Vector untuk " + stockCode, hasil, lastRecommendationTime, OUTPUT_FILE, "Muncul Bersama", "");
         printWaktu(lastRecommendationTime);
         return;
     }
@@ -491,7 +492,7 @@ void runBoughtTogetherMenu() {
         auto t = startTimer();
         vector<ProductSummary> hasil = getFrequentlyBoughtTogetherHash(stockCode, n);
         lastHashRecommendationTime = stopTimer(t);
-        writeRecommendationOutput("Frequently Bought Together - Hash Table untuk " + stockCode, hasil, lastHashRecommendationTime, OUTPUT_FILE);
+        writeRecommendationOutput("Frequently Bought Together - Hash Table untuk " + stockCode, hasil, lastHashRecommendationTime, OUTPUT_FILE, "Muncul Bersama", "");
         printWaktu(lastHashRecommendationTime);
         return;
     }
@@ -507,6 +508,55 @@ void runBoughtTogetherMenu() {
     writeMethodComparison("Frequently Bought Together untuk " + stockCode, "Hasil",
                           to_string(hasilVector.size()) + " produk", lastRecommendationTime,
                           to_string(hasilHash.size()) + " produk", lastHashRecommendationTime);
+    printWaktu(lastRecommendationTime + lastHashRecommendationTime);
+}
+
+void runCustomerRecommendationMenu() {
+    int method = inputMethod("REKOMENDASI BERDASARKAN CUSTOMER ID");
+
+    if (method < 1 || method > 3) {
+        cout << "[ERROR] Pilihan metode tidak valid.\n";
+        return;
+    }
+
+    string customerId;
+    cout << "Customer ID: ";
+    getline(cin, customerId);
+    customerId = trim(customerId);
+
+    int n = inputNumber("Jumlah rekomendasi: ", 10);
+    if (n <= 0) n = 10;
+
+    if (method == 1) {
+        auto t = startTimer();
+        vector<ProductSummary> hasil = getCustomerRecommendationsVector(customerId, n);
+        lastRecommendationTime = stopTimer(t);
+        writeRecommendationOutput("Rekomendasi Customer - Vector untuk " + customerId, hasil, lastRecommendationTime, OUTPUT_FILE, "Skor Rekomendasi", "");
+        printWaktu(lastRecommendationTime);
+        return;
+    }
+
+    if (method == 2) {
+        auto t = startTimer();
+        vector<ProductSummary> hasil = getCustomerRecommendationsHash(customerId, n);
+        lastHashRecommendationTime = stopTimer(t);
+        writeRecommendationOutput("Rekomendasi Customer - Hash Table untuk " + customerId, hasil, lastHashRecommendationTime, OUTPUT_FILE, "Skor Rekomendasi", "");
+        printWaktu(lastHashRecommendationTime);
+        return;
+    }
+
+    auto tv = startTimer();
+    vector<ProductSummary> hasilVector = getCustomerRecommendationsVector(customerId, n);
+    lastRecommendationTime = stopTimer(tv);
+
+    auto th = startTimer();
+    vector<ProductSummary> hasilHash = getCustomerRecommendationsHash(customerId, n);
+    lastHashRecommendationTime = stopTimer(th);
+
+    writeMethodComparison("Rekomendasi Customer ID: " + customerId, "Hasil",
+                          to_string(hasilVector.size()) + " produk", lastRecommendationTime,
+                          to_string(hasilHash.size()) + " produk", lastHashRecommendationTime,
+                          "Rekomendasi dibuat dari produk yang pernah dibeli customer, lalu mencari produk lain yang sering muncul bersama produk tersebut.");
     printWaktu(lastRecommendationTime + lastHashRecommendationTime);
 }
 
@@ -570,6 +620,10 @@ int main() {
             break;
         }
         case 8: {
+            runCustomerRecommendationMenu();
+            break;
+        }
+        case 9: {
             cout << "\nTotal Data : " << transactions.size() << "\n\n";
             cout << "Execution Time Statistics (ms)\n";
             cout << "Insert Vector Time      : " << fixed << setprecision(3) << lastInsertTime << "\n";
@@ -590,7 +644,7 @@ int main() {
             cout << "Sampai jumpa!\n";
             break;
         default:
-            cout << "[ERROR] Pilihan tidak valid. Masukkan 0-8.\n";
+            cout << "[ERROR] Pilihan tidak valid. Masukkan 0-9.\n";
         }
 
     } while (pilih != 0);

@@ -163,7 +163,9 @@ void writeOutputRaw(string title, string body, double durasi, string outputFile)
     }
 }
 
-void writeRecommendationOutput(string title, const vector<ProductSummary>& hasil, double durasi, string outputFile) {
+void writeRecommendationOutput(string title, const vector<ProductSummary>& hasil, double durasi,
+                               string outputFile, string scoreLabel = "Frekuensi",
+                               string extraLabel = "Total Qty") {
     ofstream out(outputFile, ios::trunc);
     ostringstream content;
 
@@ -180,9 +182,12 @@ void writeRecommendationOutput(string title, const vector<ProductSummary>& hasil
             content << no++ << ". "
                     << item.stockCode << " | "
                     << item.description << " | "
-                    << item.category << " | Score: "
-                    << item.totalQuantity << " | Transaksi: "
-                    << item.transactionCount << "\n";
+                    << item.category << " | "
+                    << scoreLabel << ": " << item.transactionCount;
+            if (!extraLabel.empty()) {
+                content << " | " << extraLabel << ": " << item.totalQuantity;
+            }
+            content << "\n";
         }
     }
 

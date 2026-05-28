@@ -305,9 +305,9 @@ vector<ProductSummary> getTopNProductsVector(int n) {
     }
 
     sort(summary.begin(), summary.end(), [](ProductSummary a, ProductSummary b) {
-        if (a.totalQuantity == b.totalQuantity)
-            return a.transactionCount > b.transactionCount;
-        return a.totalQuantity > b.totalQuantity;
+        if (a.transactionCount == b.transactionCount)
+            return a.totalQuantity > b.totalQuantity;
+        return a.transactionCount > b.transactionCount;
     });
 
     if (n > 0 && n < (int)summary.size())
@@ -343,9 +343,9 @@ vector<ProductSummary> getTopNProductsHash(int n) {
     }
 
     sort(result.begin(), result.end(), [](ProductSummary a, ProductSummary b) {
-        if (a.totalQuantity == b.totalQuantity)
-            return a.transactionCount > b.transactionCount;
-        return a.totalQuantity > b.totalQuantity;
+        if (a.transactionCount == b.transactionCount)
+            return a.totalQuantity > b.totalQuantity;
+        return a.transactionCount > b.transactionCount;
     });
 
     if (n > 0 && n < (int)result.size())
@@ -471,6 +471,154 @@ vector<ProductSummary> getFrequentlyBoughtTogetherHash(string targetStockCode, i
 
 vector<ProductSummary> getFrequentlyBoughtTogether(string targetStockCode, int n) {
     return getFrequentlyBoughtTogetherHash(targetStockCode, n);
+}
+
+vector<ProductSummary> getCustomerRecommendationsVector(string customerId, int n) {
+    vector<string> purchasedProducts;
+    vector<string> relatedInvoices;
+    vector<Transaction> candidateTransactions;
+    vector<ProductSummary> productInfo;
+
+    for (int i = 0; i < (int)transactions.size(); i++) {
+        Transaction t = transactions[i];
+        if (t.customerId == customerId) {
+            purchasedProducts.push_back(t.stockCode);
+        }
+    }
+
+    if (purchasedProducts.empty()) return productInfo;
+
+    sort(purchasedProducts.begin(), purchasedProducts.end());
+    purchasedProducts.erase(unique(purchasedProducts.begin(), purchasedProducts.end()), purchasedProducts.end());
+
+    for (int i = 0; i < (int)transactions.size(); i++) {
+        Transaction t = transactions[i];
+        if (binary_search(purchasedProducts.begin(), purchasedProducts.end(), t.stockCode)) {
+            relatedInvoices.push_back(t.invoiceId);
+        }
+    }
+
+    sort(relatedInvoices.begin(), relatedInvoices.end());
+    relatedInvoices.erase(unique(relatedInvoices.begin(), relatedInvoices.end()), relatedInvoices.end());
+
+    for (int i = 0; i < (int)transactions.size(); i++) {
+        Transaction t = transactions[i];
+        if (binary_search(relatedInvoices.begin(), relatedInvoices.end(), t.invoiceId) &&
+            !binary_search(purchasedProducts.begin(), purchasedProducts.end(), t.stockCode)) {
+            candidateTransactions.push_back(t);
+        }
+    }
+
+    sort(candidateTransactions.begin(), candidateTransactions.end(), [](Transaction a, Transaction b) {
+        if (a.invoiceId == b.invoiceId)
+            return a.stockCode < b.stockCode;
+        return a.invoiceId < b.invoiceId;
+    });
+
+    string lastInvoice = "";
+    string lastStock = "";
+    for (int i = 0; i < (int)candidateTransactions.size(); i++) {
+        Transaction t = candidateTransactions[i];
+        if (t.invoiceId == lastInvoice && t.stockCode == lastStock) continue;
+
+        int pos = findProductSummaryIndex(productInfo, t.stockCode);
+        if (pos == -1) {
+            ProductSummary item;
+            item.stockCode = t.stockCode;
+            item.description = t.description;
+            item.category = t.category;
+            item.totalQuantity = 1;
+            item.transactionCount = 1;
+            productInfo.push_back(item);
+        } else {
+            productInfo[pos].totalQuantity++;
+            productInfo[pos].transactionCount++;
+        }
+
+        lastInvoice = t.invoiceId;
+        lastStock = t.stockCode;
+    }
+
+    sort(productInfo.begin(), productInfo.end(), [](ProductSummary a, ProductSummary b) {
+        if (a.transactionCount == b.transactionCount)
+            return a.stockCode < b.stockCode;
+        return a.transactionCount > b.transactionCount;
+    });
+
+    if (n > 0 && n < (int)productInfo.size())
+        productInfo.resize(n);
+
+    return productInfo;
+}
+
+vector<ProductSummary> getCustomerRecommendationsHash(string customerId, int n) {
+    unordered_map<string, vector<int> >::iterator customer = customerIndex.find(customerId);
+    vector<ProductSummary> result;
+    if (customer == customerIndex.end()) return result;
+
+    unordered_set<string> purchasedProducts;
+    unordered_set<string> relatedInvoices;
+    unordered_map<string, ProductSummary> productInfo;
+
+    for (int pos : customer->second) {
+        if (pos >= 0 && pos < (int)transactions.size())
+            purchasedProducts.insert(transactions[pos].stockCode);
+    }
+
+    if (purchasedProducts.empty()) return result;
+
+    for (string stockCode : purchasedProducts) {
+        unordered_map<string, vector<int> >::iterator stock = stockIndex.find(stockCode);
+        if (stock == stockIndex.end()) continue;
+
+        for (int pos : stock->second) {
+            if (pos >= 0 && pos < (int)transactions.size())
+                relatedInvoices.insert(transactions[pos].invoiceId);
+        }
+    }
+
+    for (string invoiceId : relatedInvoices) {
+        unordered_map<string, vector<int> >::iterator invoice = invoiceIndex.find(invoiceId);
+        if (invoice == invoiceIndex.end()) continue;
+
+        unordered_set<string> countedInInvoice;
+        for (int pos : invoice->second) {
+            if (pos < 0 || pos >= (int)transactions.size()) continue;
+
+            Transaction t = transactions[pos];
+            if (purchasedProducts.count(t.stockCode) || countedInInvoice.count(t.stockCode)) continue;
+
+            countedInInvoice.insert(t.stockCode);
+
+            if (productInfo.find(t.stockCode) == productInfo.end()) {
+                ProductSummary item;
+                item.stockCode = t.stockCode;
+                item.description = t.description;
+                item.category = t.category;
+                item.totalQuantity = 1;
+                item.transactionCount = 1;
+                productInfo[t.stockCode] = item;
+            } else {
+                productInfo[t.stockCode].totalQuantity++;
+                productInfo[t.stockCode].transactionCount++;
+            }
+        }
+    }
+
+    for (unordered_map<string, ProductSummary>::iterator it = productInfo.begin(); it != productInfo.end(); ++it) {
+        result.push_back(it->second);
+    }
+
+    sort(result.begin(), result.end(), [](ProductSummary a, ProductSummary b) {
+        if (a.transactionCount == b.transactionCount)
+            return a.stockCode < b.stockCode;
+        return a.transactionCount > b.transactionCount;
+    });
+
+    if (n > 0 && n < (int)result.size())
+        result.resize(n);
+
+    return result;
 }
 
 #endif
