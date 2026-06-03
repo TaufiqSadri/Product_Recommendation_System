@@ -199,10 +199,17 @@ void appendOutputBlock(string title, string content, string outputFile) {
     }
 }
 
-void writeOutput(string title, const vector<Transaction>& hasil, double durasi, string outputFile) {
+int resolveOutputTotal(int totalTransactions) {
+    if (totalTransactions >= 0)
+        return totalTransactions;
+    return getVectorTransactionCount();
+}
+
+void writeOutput(string title, const vector<Transaction>& hasil, double durasi, string outputFile,
+                 int totalTransactions = -1) {
     ostringstream content;
 
-    content << "Total  : " << getVectorTransactionCount() << " transaksi\n";
+    content << "Total  : " << resolveOutputTotal(totalTransactions) << " transaksi\n";
     content << "Hasil  : " << hasil.size() << " ditemukan\n";
     content << "Waktu  : " << fixed << setprecision(5) << durasi << " ms\n\n";
 
@@ -218,10 +225,11 @@ void writeOutput(string title, const vector<Transaction>& hasil, double durasi, 
     appendOutputBlock(title, content.str(), outputFile);
 }
 
-void writeOutputRaw(string title, string body, double durasi, string outputFile) {
+void writeOutputRaw(string title, string body, double durasi, string outputFile,
+                    int totalTransactions = -1) {
     ostringstream content;
 
-    content << "Total  : " << getVectorTransactionCount() << " transaksi\n";
+    content << "Total  : " << resolveOutputTotal(totalTransactions) << " transaksi\n";
     content << "Waktu  : " << fixed << setprecision(5) << durasi << " ms\n\n";
     content << body;
 
@@ -230,10 +238,11 @@ void writeOutputRaw(string title, string body, double durasi, string outputFile)
 
 void writeRecommendationOutput(string title, const vector<ProductSummary>& hasil, double durasi,
                                string outputFile, string scoreLabel = "Frekuensi",
-                               string extraLabel = "Total Qty") {
+                               string extraLabel = "Total Qty",
+                               int totalTransactions = -1) {
     ostringstream content;
 
-    content << "Total  : " << getVectorTransactionCount() << " transaksi\n";
+    content << "Total  : " << resolveOutputTotal(totalTransactions) << " transaksi\n";
     content << "Hasil  : " << hasil.size() << " produk\n";
     content << "Waktu  : " << fixed << setprecision(5) << durasi << " ms\n\n";
 
