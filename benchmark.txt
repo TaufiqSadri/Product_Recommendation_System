@@ -1,0 +1,73 @@
+Data;Menu;Operasi;StrukturData;Waktu_ms;Memori_KB
+10000;[1];Tampilkan Transaksi;Vector;0.758;3069.011
+10000;[1];Tampilkan Transaksi;Hash Table;4.607;5135.597
+10000;[1];Tampilkan Transaksi;AVL Tree;3.039;4686.210
+10000;[2];Insert Transaksi Baru;Vector;0.000;3069.146
+10000;[2];Insert Transaksi Baru;Hash Table;0.011;5136.240
+10000;[2];Insert Transaksi Baru;AVL Tree;0.011;4686.830
+10000;[3];Search Transaksi;Vector;0.352;3069.146
+10000;[3];Search Transaksi;Hash Table;0.079;5136.240
+10000;[3];Search Transaksi;AVL Tree;0.075;4686.830
+10000;[4];Update Transaksi;Vector;0.013;3069.146
+10000;[4];Update Transaksi;Hash Table;0.008;5136.240
+10000;[4];Update Transaksi;AVL Tree;0.018;4686.830
+10000;[5];Delete Transaksi;Vector;0.026;3069.002
+10000;[5];Delete Transaksi;Hash Table;0.018;5135.773
+10000;[5];Delete Transaksi;AVL Tree;0.018;4686.403
+10000;[6];Rekomendasi Top-N Produk;Vector;259.519;3069.002
+10000;[6];Rekomendasi Top-N Produk;Hash Table;10.964;5135.773
+10000;[6];Rekomendasi Top-N Produk;AVL Tree;294.241;4686.403
+10000;[7];Rekomendasi Frequently Bought Together;Vector;6.654;3069.002
+10000;[7];Rekomendasi Frequently Bought Together;Hash Table;0.073;5135.773
+10000;[7];Rekomendasi Frequently Bought Together;AVL Tree;0.073;4686.403
+10000;[8];Rekomendasi Berdasarkan Customer ID;Vector;32.386;3069.002
+10000;[8];Rekomendasi Berdasarkan Customer ID;Hash Table;4.055;5135.773
+10000;[8];Rekomendasi Berdasarkan Customer ID;AVL Tree;32.706;4686.403
+50000;[1];Tampilkan Transaksi;Vector;4.938;15340.212
+50000;[1];Tampilkan Transaksi;Hash Table;18.558;22161.094
+50000;[1];Tampilkan Transaksi;AVL Tree;12.636;20171.316
+50000;[2];Insert Transaksi Baru;Vector;0.000;15340.347
+50000;[2];Insert Transaksi Baru;Hash Table;0.008;22161.737
+50000;[2];Insert Transaksi Baru;AVL Tree;0.013;20171.937
+50000;[3];Search Transaksi;Vector;1.678;15340.347
+50000;[3];Search Transaksi;Hash Table;0.075;22161.737
+50000;[3];Search Transaksi;AVL Tree;0.073;20171.937
+50000;[4];Update Transaksi;Vector;0.170;15340.347
+50000;[4];Update Transaksi;Hash Table;0.013;22161.737
+50000;[4];Update Transaksi;AVL Tree;0.016;20171.937
+50000;[5];Delete Transaksi;Vector;0.329;15340.203
+50000;[5];Delete Transaksi;Hash Table;0.009;22161.371
+50000;[5];Delete Transaksi;AVL Tree;0.013;20171.582
+50000;[6];Rekomendasi Top-N Produk;Vector;1524.820;15340.203
+50000;[6];Rekomendasi Top-N Produk;Hash Table;42.264;22161.371
+50000;[6];Rekomendasi Top-N Produk;AVL Tree;1462.602;20171.582
+50000;[7];Rekomendasi Frequently Bought Together;Vector;83.700;15340.203
+50000;[7];Rekomendasi Frequently Bought Together;Hash Table;0.633;22161.371
+50000;[7];Rekomendasi Frequently Bought Together;AVL Tree;0.818;20171.582
+50000;[8];Rekomendasi Berdasarkan Customer ID;Vector;322.089;15340.203
+50000;[8];Rekomendasi Berdasarkan Customer ID;Hash Table;19.410;22161.371
+50000;[8];Rekomendasi Berdasarkan Customer ID;AVL Tree;296.805;20171.582
+100000;[1];Tampilkan Transaksi;Vector;9.021;30676.616
+100000;[1];Tampilkan Transaksi;Hash Table;35.672;42596.113
+100000;[1];Tampilkan Transaksi;AVL Tree;24.005;38704.164
+100000;[2];Insert Transaksi Baru;Vector;0.000;30676.751
+100000;[2];Insert Transaksi Baru;Hash Table;0.010;42596.757
+100000;[2];Insert Transaksi Baru;AVL Tree;0.014;38704.784
+100000;[3];Search Transaksi;Vector;3.215;30676.751
+100000;[3];Search Transaksi;Hash Table;0.015;42596.757
+100000;[3];Search Transaksi;AVL Tree;0.019;38704.784
+100000;[4];Update Transaksi;Vector;0.337;30676.751
+100000;[4];Update Transaksi;Hash Table;0.011;42596.757
+100000;[4];Update Transaksi;AVL Tree;0.023;38704.784
+100000;[5];Delete Transaksi;Vector;0.674;30676.614
+100000;[5];Delete Transaksi;Hash Table;0.012;42596.391
+100000;[5];Delete Transaksi;AVL Tree;0.018;38704.454
+100000;[6];Rekomendasi Top-N Produk;Vector;2914.703;30676.614
+100000;[6];Rekomendasi Top-N Produk;Hash Table;64.793;42596.391
+100000;[6];Rekomendasi Top-N Produk;AVL Tree;2972.313;38704.454
+100000;[7];Rekomendasi Frequently Bought Together;Vector;1653.410;30676.614
+100000;[7];Rekomendasi Frequently Bought Together;Hash Table;6.862;42596.391
+100000;[7];Rekomendasi Frequently Bought Together;AVL Tree;34.081;38704.454
+100000;[8];Rekomendasi Berdasarkan Customer ID;Vector;286.127;30676.614
+100000;[8];Rekomendasi Berdasarkan Customer ID;Hash Table;13.962;42596.391
+100000;[8];Rekomendasi Berdasarkan Customer ID;AVL Tree;159.523;38704.454

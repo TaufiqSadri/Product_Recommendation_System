@@ -4,12 +4,34 @@
 #include <sstream>
 #include <limits>
 #include <iomanip>
+#include <fstream>
 #include "readwrite.h"
 
-#define CSV_FILE    "transactions.csv"
+#define CSV_FILE    "transaction.csv"
 #define OUTPUT_FILE "output.txt"
+#define BENCHMARK_FILE "benchmark.txt"
 
 using namespace std;
+
+// Menyimpan waktu eksekusi tiap operasi (ms)
+double lastInsertTime = 0;
+double lastSearchTime = 0;
+double lastUpdateTime = 0;
+double lastDeleteTime = 0;
+double lastShowTime   = 0;
+double lastHashInsertTime = 0;
+double lastHashSearchTime = 0;
+double lastHashUpdateTime = 0;
+double lastHashDeleteTime = 0;
+double lastHashShowTime = 0;
+double lastRecommendationTime = 0;
+double lastHashRecommendationTime = 0;
+double lastAVLInsertTime = 0;
+double lastAVLSearchTime = 0;
+double lastAVLUpdateTime = 0;
+double lastAVLDeleteTime = 0;
+double lastAVLShowTime = 0;
+double lastAVLRecommendationTime = 0;
 
 chrono::high_resolution_clock::time_point startTimer() {
     return chrono::high_resolution_clock::now();
@@ -25,9 +47,94 @@ void printWaktu(double ms) {
     cout << "waktu = " << fixed << setprecision(3) << ms << " ms\n";
 }
 
+double memoryKB(size_t bytes) {
+    return bytes / 1024.0;
+}
+
+string methodName(int method) {
+    if (method == 1) return "Vector";
+    if (method == 2) return "Hash Table";
+    if (method == 3) return "AVL Tree";
+    return "Bandingkan Semua";
+}
+
+double memoryForMethodKB(int method) {
+    if (method == 1) return memoryKB(estimateVectorMemory());
+    if (method == 2) return memoryKB(estimateHashMemory());
+    if (method == 3) return memoryKB(estimateAVLMemory());
+    return 0.0;
+}
+
+void prepareBenchmarkFile() {
+    const string header = "Data;Menu;Operasi;StrukturData;Waktu_ms;Memori_KB";
+    ifstream in(BENCHMARK_FILE);
+    string firstLine;
+    getline(in, firstLine);
+    in.close();
+
+    if (firstLine == header) return;
+
+    ofstream out(BENCHMARK_FILE, ios::trunc);
+    if (out.is_open()) {
+        out << header << "\n";
+        out.close();
+    }
+}
+
+void appendBenchmarkStat(int dataSize, int menuNo, string operation, int method, double timeMs) {
+    prepareBenchmarkFile();
+
+    ofstream out(BENCHMARK_FILE, ios::app);
+    if (!out.is_open()) {
+        cerr << "[ERROR] Gagal menulis " << BENCHMARK_FILE << "\n";
+        return;
+    }
+
+    out << dataSize << ";"
+        << "[" << menuNo << "];"
+        << operation << ";"
+        << methodName(method) << ";"
+        << fixed << setprecision(3) << timeMs << ";"
+        << fixed << setprecision(3) << memoryForMethodKB(method) << "\n";
+    out.close();
+}
+
+void appendBenchmarkCompare(int dataSize, int menuNo, string operation,
+                            double vectorTime, double hashTime, double avlTime) {
+    appendBenchmarkStat(dataSize, menuNo, operation, 1, vectorTime);
+    appendBenchmarkStat(dataSize, menuNo, operation, 2, hashTime);
+    appendBenchmarkStat(dataSize, menuNo, operation, 3, avlTime);
+}
+
+void showBenchmarkStats() {
+    prepareBenchmarkFile();
+
+    ifstream in(BENCHMARK_FILE);
+    if (!in.is_open()) {
+        cout << "[ERROR] Tidak bisa membuka " << BENCHMARK_FILE << "\n";
+        return;
+    }
+
+    cout << "\nStatistik Benchmark\n";
+    string line;
+    bool hasRows = false;
+    while (getline(in, line)) {
+        cout << line << "\n";
+        if (line.find(';') != string::npos && line.find("Data;") != 0) {
+            hasRows = true;
+        }
+    }
+
+    if (!hasRows) {
+        cout << "Belum ada statistik. Jalankan menu 1-8 terlebih dahulu.\n";
+    }
+
+    in.close();
+}
+
 void printMenu() {
-    cout << "\n=== SISTEM REKOMENDASI PRODUK - E-COMMERCE ===\n";
-    cout << "[1] Simpan Semua Transaksi ke output.txt\n";
+    cout << "\nSistem Rekomendasi Produk\n";
+    cout << "[1] Tampilkan Transaksi\n";
     cout << "[2] Insert Transaksi Baru\n";
     cout << "[3] Search Transaksi\n";
     cout << "[4] Update Transaksi\n";
@@ -58,11 +165,24 @@ string searchFieldName(int field) {
 }
 
 int inputMethod(string title) {
-    cout << "\n--- " << title << " ---\n";
+    cout << "\n" << title << "\n";
     cout << "[1] Vector\n";
     cout << "[2] Hash Table\n";
-    cout << "[3] Bandingkan Vector vs Hash Table\n";
+    cout << "[3] AVL Tree\n";
+    cout << "[4] Bandingkan Semua\n";
     return inputNumber("Pilih metode: ", 0);
+}
+
+int inputDataLimit() {
+    cout << "Pilih ukuran data yang digunakan\n";
+    cout << "[1] 10.000 transaksi\n";
+    cout << "[2] 50.000 transaksi\n";
+    cout << "[3] 100.000 transaksi\n";
+
+    int choice = inputNumber("Pilih data: ", 3);
+    if (choice == 1) return 10000;
+    if (choice == 2) return 50000;
+    return 100000;
 }
 
 string statusText(bool ok) {
@@ -70,9 +190,9 @@ string statusText(bool ok) {
 }
 
 vector<Transaction> searchVectorByField(int field, string key) {
-    if (field == 1) return searchByInvoiceId(key);
-    if (field == 2) return searchByCustomerId(key);
-    if (field == 3) return searchByStockCode(key);
+    if (field == 1) return searchByInvoiceIdVector(key);
+    if (field == 2) return searchByCustomerIdVector(key);
+    if (field == 3) return searchByStockCodeVector(key);
     return vector<Transaction>();
 }
 
@@ -80,6 +200,13 @@ vector<Transaction> searchHashByField(int field, string key) {
     if (field == 1) return searchByInvoiceIdHash(key);
     if (field == 2) return searchByCustomerIdHash(key);
     if (field == 3) return searchByStockCodeHash(key);
+    return vector<Transaction>();
+}
+
+vector<Transaction> searchAVLByField(int field, string key) {
+    if (field == 1) return searchByInvoiceIdAVL(key);
+    if (field == 2) return searchByCustomerIdAVL(key);
+    if (field == 3) return searchByStockCodeAVL(key);
     return vector<Transaction>();
 }
 
@@ -101,8 +228,86 @@ void writeMethodComparison(string title, string metricName, string vectorResult,
     writeOutputRaw("Perbandingan " + title, body.str(), vectorTime + hashTime, OUTPUT_FILE);
 }
 
+void writeAllMethodComparison(string title, string metricName,
+                              string vectorResult, double vectorTime,
+                              string hashResult, double hashTime,
+                              string avlResult, double avlTime,
+                              string note = "") {
+    ostringstream body;
+    body << "Metode          | " << metricName << " | Waktu\n";
+    body << "Vector          | " << vectorResult << " | " << fixed << setprecision(3) << vectorTime << " ms\n";
+    body << "Hash Table      | " << hashResult   << " | " << fixed << setprecision(3) << hashTime   << " ms\n";
+    body << "AVL Tree        | " << avlResult    << " | " << fixed << setprecision(3) << avlTime    << " ms\n";
+
+    if (!note.empty()) {
+        body << "\nCatatan: " << note << "\n";
+    }
+
+    writeOutputRaw("Perbandingan " + title, body.str(), vectorTime + hashTime + avlTime, OUTPUT_FILE);
+}
+
+void insertTransactionMeasured(Transaction t, double& vectorTime, double& hashTime, double& avlTime) {
+    assignTransactionRecordId(t);
+
+    auto tv = startTimer();
+    insertTransactionVector(t);
+    vectorTime = stopTimer(tv);
+
+    auto th = startTimer();
+    insertTransactionHash(t);
+    hashTime = stopTimer(th);
+
+    auto ta = startTimer();
+    insertTransactionAVL(t);
+    avlTime = stopTimer(ta);
+}
+
+void showTransactionsInTerminal(const vector<Transaction>& data) {
+    int limit = (int)data.size();
+    if (limit > 20) limit = 20;
+
+    cout << "\nMenampilkan " << limit << " dari " << data.size() << " transaksi:\n";
+    for (int i = 0; i < limit; i++) {
+        cout << formatTransaction(data[i], i + 1) << "\n";
+    }
+
+    if ((int)data.size() > limit) {
+        cout << "... data selengkapnya dicatat di output.txt\n";
+    }
+}
+
+int findRecordIdForInvoice(string invoiceId, int method) {
+    int recordId = -1;
+
+    if (method == 2)
+        recordId = findRecordIdByInvoiceIdHash(invoiceId);
+    else if (method == 3)
+        recordId = findRecordIdByInvoiceIdAVL(invoiceId);
+    else
+        recordId = findRecordIdByInvoiceIdVector(invoiceId);
+
+    if (recordId == -1 && method == 4)
+        recordId = findRecordIdByInvoiceIdHash(invoiceId);
+    if (recordId == -1 && method == 4)
+        recordId = findRecordIdByInvoiceIdAVL(invoiceId);
+    if (recordId == -1)
+        recordId = findRecordIdByInvoiceIdVector(invoiceId);
+
+    return recordId;
+}
+
+bool getTransactionForInvoice(string invoiceId, int method, Transaction& current) {
+    int recordId = findRecordIdForInvoice(invoiceId, method);
+    if (recordId == -1) return false;
+
+    if (getTransactionByRecordIdVector(recordId, current)) return true;
+    if (getTransactionByRecordIdHash(recordId, current)) return true;
+    return getTransactionByRecordIdAVL(recordId, current);
+}
+
 Transaction inputNewTransaction() {
     Transaction t;
+    t.recordId = 0;
     cout << "Invoice ID  : "; getline(cin, t.invoiceId);
     cout << "Stock Code  : "; getline(cin, t.stockCode);
     cout << "Description : "; getline(cin, t.description);
@@ -166,18 +371,22 @@ Transaction inputUpdatedTransaction(Transaction current) {
 }
 
 void runShowMenu() {
-    int method = inputMethod("SIMPAN SEMUA TRANSAKSI");
+    int method = inputMethod("TAMPILKAN TRANSAKSI");
 
-    if (method < 1 || method > 3) {
+    if (method < 1 || method > 4) {
         cout << "[ERROR] Pilihan metode tidak valid.\n";
         return;
     }
+
+    int dataSize = getVectorTransactionCount();
 
     if (method == 1) {
         auto t = startTimer();
         vector<Transaction> hasil = getAllTransactionsVector();
         lastShowTime = stopTimer(t);
+        showTransactionsInTerminal(hasil);
         writeOutput("Semua Transaksi - Vector", hasil, lastShowTime, OUTPUT_FILE);
+        appendBenchmarkStat(dataSize, 1, "Tampilkan Transaksi", 1, lastShowTime);
         printWaktu(lastShowTime);
         return;
     }
@@ -186,8 +395,21 @@ void runShowMenu() {
         auto t = startTimer();
         vector<Transaction> hasil = getAllTransactionsHash();
         lastHashShowTime = stopTimer(t);
+        showTransactionsInTerminal(hasil);
         writeOutput("Semua Transaksi - Hash Table", hasil, lastHashShowTime, OUTPUT_FILE);
+        appendBenchmarkStat(dataSize, 1, "Tampilkan Transaksi", 2, lastHashShowTime);
         printWaktu(lastHashShowTime);
+        return;
+    }
+
+    if (method == 3) {
+        auto t = startTimer();
+        vector<Transaction> hasil = getAllTransactionsAVL();
+        lastAVLShowTime = stopTimer(t);
+        showTransactionsInTerminal(hasil);
+        writeOutput("Semua Transaksi - AVL Tree", hasil, lastAVLShowTime, OUTPUT_FILE);
+        appendBenchmarkStat(dataSize, 1, "Tampilkan Transaksi", 3, lastAVLShowTime);
+        printWaktu(lastAVLShowTime);
         return;
     }
 
@@ -199,39 +421,51 @@ void runShowMenu() {
     vector<Transaction> hasilHash = getAllTransactionsHash();
     lastHashShowTime = stopTimer(th);
 
-    writeMethodComparison("Simpan Semua Transaksi", "Jumlah",
-                          to_string(hasilVector.size()) + " data", lastShowTime,
-                          to_string(hasilHash.size()) + " data", lastHashShowTime,
-                          "Mode banding hanya menyimpan ringkasan performa ke output.txt.");
-    printWaktu(lastShowTime + lastHashShowTime);
+    auto ta = startTimer();
+    vector<Transaction> hasilAVL = getAllTransactionsAVL();
+    lastAVLShowTime = stopTimer(ta);
+
+    showTransactionsInTerminal(hasilVector);
+
+    writeAllMethodComparison("Tampilkan Semua Transaksi", "Jumlah",
+                             to_string(hasilVector.size()) + " data", lastShowTime,
+                             to_string(hasilHash.size()) + " data", lastHashShowTime,
+                             to_string(hasilAVL.size()) + " data", lastAVLShowTime,
+                             "Terminal menampilkan data dari vector. Ringkasan perbandingan dicatat di output.txt.");
+    appendBenchmarkCompare(dataSize, 1, "Tampilkan Transaksi", lastShowTime, lastHashShowTime, lastAVLShowTime);
+    printWaktu(lastShowTime + lastHashShowTime + lastAVLShowTime);
 }
 
 void runInsertMenu() {
     int method = inputMethod("INSERT TRANSAKSI");
 
-    if (method < 1 || method > 3) {
+    if (method < 1 || method > 4) {
         cout << "[ERROR] Pilihan metode tidak valid.\n";
         return;
     }
 
     Transaction t = inputNewTransaction();
 
+    int dataSize = getVectorTransactionCount();
     double vectorTime = 0;
     double hashTime = 0;
-    insertTransactionMeasured(t, vectorTime, hashTime);
+    double avlTime = 0;
+    insertTransactionMeasured(t, vectorTime, hashTime, avlTime);
     lastInsertTime = vectorTime;
     lastHashInsertTime = hashTime;
+    lastAVLInsertTime = avlTime;
 
     ostringstream body;
     body << "Transaksi baru berhasil ditambahkan.\n";
     body << "Invoice ID  : " << t.invoiceId << "\n";
     body << "Stock Code  : " << t.stockCode << "\n";
     body << "Customer ID : " << t.customerId << "\n";
-    body << "Total data  : " << transactions.size() << " transaksi\n";
+    body << "Total data  : " << getVectorTransactionCount() << " transaksi\n";
 
     if (method == 1) {
         body << "\nMetode: Vector push_back.\n";
         writeOutputRaw("Insert Vector", body.str(), vectorTime, OUTPUT_FILE);
+        appendBenchmarkStat(dataSize, 2, "Insert Transaksi Baru", 1, vectorTime);
         printWaktu(vectorTime);
         return;
     }
@@ -239,21 +473,32 @@ void runInsertMenu() {
     if (method == 2) {
         body << "\nMetode: Hash Table menambahkan index untuk data baru.\n";
         writeOutputRaw("Insert Hash Table", body.str(), hashTime, OUTPUT_FILE);
+        appendBenchmarkStat(dataSize, 2, "Insert Transaksi Baru", 2, hashTime);
         printWaktu(hashTime);
         return;
     }
 
-    writeMethodComparison("Insert Transaksi", "Status",
-                          "1 data", vectorTime,
-                          "1 index", hashTime,
-                          "Data dimasukkan satu kali. Vector menyimpan data utama, Hash Table menyimpan index.");
-    printWaktu(vectorTime + hashTime);
+    if (method == 3) {
+        body << "\nMetode: AVL Tree insert dengan balancing.\n";
+        writeOutputRaw("Insert AVL Tree", body.str(), avlTime, OUTPUT_FILE);
+        appendBenchmarkStat(dataSize, 2, "Insert Transaksi Baru", 3, avlTime);
+        printWaktu(avlTime);
+        return;
+    }
+
+    writeAllMethodComparison("Insert Transaksi", "Status",
+                             "1 data", vectorTime,
+                             "1 data", hashTime,
+                             "1 data", avlTime,
+                             "Data disimpan pada tiga struktur terpisah: vector, hash table, dan AVL tree.");
+    appendBenchmarkCompare(dataSize, 2, "Insert Transaksi Baru", vectorTime, hashTime, avlTime);
+    printWaktu(vectorTime + hashTime + avlTime);
 }
 
 void runSearchMenu() {
     int method = inputMethod("SEARCH TRANSAKSI");
 
-    if (method < 1 || method > 3) {
+    if (method < 1 || method > 4) {
         cout << "[ERROR] Pilihan metode tidak valid.\n";
         return;
     }
@@ -280,12 +525,14 @@ void runSearchMenu() {
     }
 
     string label = searchFieldName(field) + ": " + key;
+    int dataSize = getVectorTransactionCount();
 
     if (method == 1) {
         auto t = startTimer();
         vector<Transaction> hasil = searchVectorByField(field, key);
         lastSearchTime = stopTimer(t);
         writeOutput("Search Vector - " + label, hasil, lastSearchTime, OUTPUT_FILE);
+        appendBenchmarkStat(dataSize, 3, "Search Transaksi", 1, lastSearchTime);
         printWaktu(lastSearchTime);
         return;
     }
@@ -295,7 +542,18 @@ void runSearchMenu() {
         vector<Transaction> hasil = searchHashByField(field, key);
         lastHashSearchTime = stopTimer(t);
         writeOutput("Search Hash Table - " + label, hasil, lastHashSearchTime, OUTPUT_FILE);
+        appendBenchmarkStat(dataSize, 3, "Search Transaksi", 2, lastHashSearchTime);
         printWaktu(lastHashSearchTime);
+        return;
+    }
+
+    if (method == 3) {
+        auto t = startTimer();
+        vector<Transaction> hasil = searchAVLByField(field, key);
+        lastAVLSearchTime = stopTimer(t);
+        writeOutput("Search AVL Tree - " + label, hasil, lastAVLSearchTime, OUTPUT_FILE);
+        appendBenchmarkStat(dataSize, 3, "Search Transaksi", 3, lastAVLSearchTime);
+        printWaktu(lastAVLSearchTime);
         return;
     }
 
@@ -307,16 +565,22 @@ void runSearchMenu() {
     vector<Transaction> hasilHash = searchHashByField(field, key);
     lastHashSearchTime = stopTimer(th);
 
-    writeMethodComparison("Search - " + label, "Hasil",
-                          to_string(hasilVector.size()) + " data", lastSearchTime,
-                          to_string(hasilHash.size()) + " data", lastHashSearchTime);
-    printWaktu(lastSearchTime + lastHashSearchTime);
+    auto ta = startTimer();
+    vector<Transaction> hasilAVL = searchAVLByField(field, key);
+    lastAVLSearchTime = stopTimer(ta);
+
+    writeAllMethodComparison("Search - " + label, "Hasil",
+                             to_string(hasilVector.size()) + " data", lastSearchTime,
+                             to_string(hasilHash.size()) + " data", lastHashSearchTime,
+                             to_string(hasilAVL.size()) + " data", lastAVLSearchTime);
+    appendBenchmarkCompare(dataSize, 3, "Search Transaksi", lastSearchTime, lastHashSearchTime, lastAVLSearchTime);
+    printWaktu(lastSearchTime + lastHashSearchTime + lastAVLSearchTime);
 }
 
 void runUpdateMenu() {
     int method = inputMethod("UPDATE TRANSAKSI");
 
-    if (method < 1 || method > 3) {
+    if (method < 1 || method > 4) {
         cout << "[ERROR] Pilihan metode tidak valid.\n";
         return;
     }
@@ -326,56 +590,78 @@ void runUpdateMenu() {
     getline(cin, id);
     id = trim(id);
 
-    int currentPos = (method == 1) ? findIndexByInvoiceIdVector(id) : findIndexByInvoiceIdHash(id);
-    if (currentPos == -1 && method == 3) currentPos = findIndexByInvoiceIdHash(id);
-    if (currentPos == -1) currentPos = findIndexByInvoiceIdVector(id);
-
-    if (currentPos == -1) {
+    Transaction current;
+    if (!getTransactionForInvoice(id, method, current)) {
         writeOutputRaw("Update Transaksi", "Invoice ID \"" + id + "\" tidak ditemukan.\n", 0, OUTPUT_FILE);
         return;
     }
 
-    Transaction updated = inputUpdatedTransaction(transactions[currentPos]);
+    Transaction updated = inputUpdatedTransaction(current);
+    updated.recordId = current.recordId;
+    int dataSize = getVectorTransactionCount();
 
     if (method == 1) {
         auto t = startTimer();
-        bool ok = updateByInvoiceIdVector(id, updated);
+        bool ok = updateByRecordIdVector(current.recordId, updated);
         lastUpdateTime = stopTimer(t);
+        if (ok) updateByRecordIdHash(current.recordId, updated);
+        if (ok) updateByRecordIdAVL(current.recordId, updated);
         writeOutputRaw("Update Vector", "Status: " + statusText(ok) + "\n", lastUpdateTime, OUTPUT_FILE);
+        appendBenchmarkStat(dataSize, 4, "Update Transaksi", 1, lastUpdateTime);
         printWaktu(lastUpdateTime);
         return;
     }
 
     if (method == 2) {
         auto t = startTimer();
-        bool ok = updateByInvoiceIdHash(id, updated);
+        bool ok = updateByRecordIdHash(current.recordId, updated);
         lastHashUpdateTime = stopTimer(t);
+        if (ok) updateByRecordIdVector(current.recordId, updated);
+        if (ok) updateByRecordIdAVL(current.recordId, updated);
         writeOutputRaw("Update Hash Table", "Status: " + statusText(ok) + "\n", lastHashUpdateTime, OUTPUT_FILE);
+        appendBenchmarkStat(dataSize, 4, "Update Transaksi", 2, lastHashUpdateTime);
         printWaktu(lastHashUpdateTime);
         return;
     }
 
+    if (method == 3) {
+        auto t = startTimer();
+        bool ok = updateByRecordIdAVL(current.recordId, updated);
+        lastAVLUpdateTime = stopTimer(t);
+        if (ok) updateByRecordIdVector(current.recordId, updated);
+        if (ok) updateByRecordIdHash(current.recordId, updated);
+        writeOutputRaw("Update AVL Tree", "Status: " + statusText(ok) + "\n", lastAVLUpdateTime, OUTPUT_FILE);
+        appendBenchmarkStat(dataSize, 4, "Update Transaksi", 3, lastAVLUpdateTime);
+        printWaktu(lastAVLUpdateTime);
+        return;
+    }
+
     auto tv = startTimer();
-    int vectorPos = findIndexByInvoiceIdVector(id);
+    bool vectorOk = updateByRecordIdVector(current.recordId, updated);
     lastUpdateTime = stopTimer(tv);
 
     auto th = startTimer();
-    int hashPos = findIndexByInvoiceIdHash(id);
+    bool hashOk = updateByRecordIdHash(current.recordId, updated);
     lastHashUpdateTime = stopTimer(th);
 
-    bool ok = updateAtIndex(hashPos != -1 ? hashPos : vectorPos, updated);
-    writeMethodComparison("Update Invoice ID: " + id, "Status",
-                          statusText(vectorPos != -1), lastUpdateTime,
-                          statusText(hashPos != -1), lastHashUpdateTime,
-                          "Update dilakukan satu kali setelah posisi data ditemukan.");
-    cout << "[INFO] Update " << statusText(ok) << ".\n";
-    printWaktu(lastUpdateTime + lastHashUpdateTime);
+    auto ta = startTimer();
+    bool avlOk = updateByRecordIdAVL(current.recordId, updated);
+    lastAVLUpdateTime = stopTimer(ta);
+
+    writeAllMethodComparison("Update Invoice ID: " + id, "Status",
+                             statusText(vectorOk), lastUpdateTime,
+                             statusText(hashOk), lastHashUpdateTime,
+                             statusText(avlOk), lastAVLUpdateTime,
+                             "Update dilakukan pada recordId yang sama di tiga struktur data.");
+    appendBenchmarkCompare(dataSize, 4, "Update Transaksi", lastUpdateTime, lastHashUpdateTime, lastAVLUpdateTime);
+    cout << "[INFO] Update " << statusText(vectorOk && hashOk && avlOk) << ".\n";
+    printWaktu(lastUpdateTime + lastHashUpdateTime + lastAVLUpdateTime);
 }
 
 void runDeleteMenu() {
     int method = inputMethod("DELETE TRANSAKSI");
 
-    if (method < 1 || method > 3) {
+    if (method < 1 || method > 4) {
         cout << "[ERROR] Pilihan metode tidak valid.\n";
         return;
     }
@@ -385,57 +671,90 @@ void runDeleteMenu() {
     getline(cin, id);
     id = trim(id);
 
+    int recordId = findRecordIdForInvoice(id, method);
+    if (recordId == -1) {
+        writeOutputRaw("Delete Transaksi", "Invoice ID \"" + id + "\" tidak ditemukan.\n", 0, OUTPUT_FILE);
+        return;
+    }
+
+    int dataSize = getVectorTransactionCount();
+
     if (method == 1) {
         auto t = startTimer();
-        bool ok = deleteByInvoiceIdVector(id);
+        bool ok = deleteByRecordIdVector(recordId);
         lastDeleteTime = stopTimer(t);
-        writeOutputRaw("Delete Vector", "Status: " + statusText(ok) + "\nTotal data: " + to_string(transactions.size()) + "\n", lastDeleteTime, OUTPUT_FILE);
+        if (ok) deleteByRecordIdHash(recordId);
+        if (ok) deleteByRecordIdAVL(recordId);
+        writeOutputRaw("Delete Vector", "Status: " + statusText(ok) + "\nTotal data: " + to_string(getVectorTransactionCount()) + "\n", lastDeleteTime, OUTPUT_FILE);
+        appendBenchmarkStat(dataSize, 5, "Delete Transaksi", 1, lastDeleteTime);
         printWaktu(lastDeleteTime);
         return;
     }
 
     if (method == 2) {
         auto t = startTimer();
-        bool ok = deleteByInvoiceIdHash(id);
+        bool ok = deleteByRecordIdHash(recordId);
         lastHashDeleteTime = stopTimer(t);
-        writeOutputRaw("Delete Hash Table", "Status: " + statusText(ok) + "\nTotal data: " + to_string(transactions.size()) + "\n", lastHashDeleteTime, OUTPUT_FILE);
+        if (ok) deleteByRecordIdVector(recordId);
+        if (ok) deleteByRecordIdAVL(recordId);
+        writeOutputRaw("Delete Hash Table", "Status: " + statusText(ok) + "\nTotal data: " + to_string(getHashTransactionCount()) + "\n", lastHashDeleteTime, OUTPUT_FILE);
+        appendBenchmarkStat(dataSize, 5, "Delete Transaksi", 2, lastHashDeleteTime);
         printWaktu(lastHashDeleteTime);
         return;
     }
 
+    if (method == 3) {
+        auto t = startTimer();
+        bool ok = deleteByRecordIdAVL(recordId);
+        lastAVLDeleteTime = stopTimer(t);
+        if (ok) deleteByRecordIdVector(recordId);
+        if (ok) deleteByRecordIdHash(recordId);
+        writeOutputRaw("Delete AVL Tree", "Status: " + statusText(ok) + "\nTotal data: " + to_string(getAVLTransactionCount()) + "\n", lastAVLDeleteTime, OUTPUT_FILE);
+        appendBenchmarkStat(dataSize, 5, "Delete Transaksi", 3, lastAVLDeleteTime);
+        printWaktu(lastAVLDeleteTime);
+        return;
+    }
+
     auto tv = startTimer();
-    int vectorPos = findIndexByInvoiceIdVector(id);
+    bool vectorOk = deleteByRecordIdVector(recordId);
     lastDeleteTime = stopTimer(tv);
 
     auto th = startTimer();
-    int hashPos = findIndexByInvoiceIdHash(id);
+    bool hashOk = deleteByRecordIdHash(recordId);
     lastHashDeleteTime = stopTimer(th);
 
-    bool ok = deleteAtIndex(hashPos != -1 ? hashPos : vectorPos);
-    writeMethodComparison("Delete Invoice ID: " + id, "Status",
-                          statusText(vectorPos != -1), lastDeleteTime,
-                          statusText(hashPos != -1), lastHashDeleteTime,
-                          "Delete dilakukan satu kali. Setelah erase dari vector, Hash Table di-reindex karena posisi data bergeser.");
-    cout << "[INFO] Delete " << statusText(ok) << ".\n";
-    printWaktu(lastDeleteTime + lastHashDeleteTime);
+    auto ta = startTimer();
+    bool avlOk = deleteByRecordIdAVL(recordId);
+    lastAVLDeleteTime = stopTimer(ta);
+
+    writeAllMethodComparison("Delete Invoice ID: " + id, "Status",
+                             statusText(vectorOk), lastDeleteTime,
+                             statusText(hashOk), lastHashDeleteTime,
+                             statusText(avlOk), lastAVLDeleteTime,
+                             "Delete dilakukan pada recordId yang sama. Hash table dan AVL tidak memakai posisi vector.");
+    appendBenchmarkCompare(dataSize, 5, "Delete Transaksi", lastDeleteTime, lastHashDeleteTime, lastAVLDeleteTime);
+    cout << "[INFO] Delete " << statusText(vectorOk && hashOk && avlOk) << ".\n";
+    printWaktu(lastDeleteTime + lastHashDeleteTime + lastAVLDeleteTime);
 }
 
 void runTopNMenu() {
     int method = inputMethod("REKOMENDASI TOP-N PRODUK PALING SERING DIBELI");
 
-    if (method < 1 || method > 3) {
+    if (method < 1 || method > 4) {
         cout << "[ERROR] Pilihan metode tidak valid.\n";
         return;
     }
 
     int n = inputNumber("Jumlah rekomendasi: ", 10);
     if (n <= 0) n = 10;
+    int dataSize = getVectorTransactionCount();
 
     if (method == 1) {
         auto t = startTimer();
         vector<ProductSummary> hasil = getTopNProductsVector(n);
         lastRecommendationTime = stopTimer(t);
         writeRecommendationOutput("Top-" + to_string(n) + " Produk Paling Sering Dibeli - Vector", hasil, lastRecommendationTime, OUTPUT_FILE, "Frekuensi Transaksi", "Total Qty");
+        appendBenchmarkStat(dataSize, 6, "Rekomendasi Top-N Produk", 1, lastRecommendationTime);
         printWaktu(lastRecommendationTime);
         return;
     }
@@ -445,7 +764,18 @@ void runTopNMenu() {
         vector<ProductSummary> hasil = getTopNProductsHash(n);
         lastHashRecommendationTime = stopTimer(t);
         writeRecommendationOutput("Top-" + to_string(n) + " Produk Paling Sering Dibeli - Hash Table", hasil, lastHashRecommendationTime, OUTPUT_FILE, "Frekuensi Transaksi", "Total Qty");
+        appendBenchmarkStat(dataSize, 6, "Rekomendasi Top-N Produk", 2, lastHashRecommendationTime);
         printWaktu(lastHashRecommendationTime);
+        return;
+    }
+
+    if (method == 3) {
+        auto t = startTimer();
+        vector<ProductSummary> hasil = getTopNProductsAVL(n);
+        lastAVLRecommendationTime = stopTimer(t);
+        writeRecommendationOutput("Top-" + to_string(n) + " Produk Paling Sering Dibeli - AVL Tree", hasil, lastAVLRecommendationTime, OUTPUT_FILE, "Frekuensi Transaksi", "Total Qty");
+        appendBenchmarkStat(dataSize, 6, "Rekomendasi Top-N Produk", 3, lastAVLRecommendationTime);
+        printWaktu(lastAVLRecommendationTime);
         return;
     }
 
@@ -457,16 +787,22 @@ void runTopNMenu() {
     vector<ProductSummary> hasilHash = getTopNProductsHash(n);
     lastHashRecommendationTime = stopTimer(th);
 
-    writeMethodComparison("Top-" + to_string(n) + " Produk Paling Sering Dibeli", "Hasil",
-                          to_string(hasilVector.size()) + " produk", lastRecommendationTime,
-                          to_string(hasilHash.size()) + " produk", lastHashRecommendationTime);
-    printWaktu(lastRecommendationTime + lastHashRecommendationTime);
+    auto ta = startTimer();
+    vector<ProductSummary> hasilAVL = getTopNProductsAVL(n);
+    lastAVLRecommendationTime = stopTimer(ta);
+
+    writeAllMethodComparison("Top-" + to_string(n) + " Produk Paling Sering Dibeli", "Hasil",
+                             to_string(hasilVector.size()) + " produk", lastRecommendationTime,
+                             to_string(hasilHash.size()) + " produk", lastHashRecommendationTime,
+                             to_string(hasilAVL.size()) + " produk", lastAVLRecommendationTime);
+    appendBenchmarkCompare(dataSize, 6, "Rekomendasi Top-N Produk", lastRecommendationTime, lastHashRecommendationTime, lastAVLRecommendationTime);
+    printWaktu(lastRecommendationTime + lastHashRecommendationTime + lastAVLRecommendationTime);
 }
 
 void runBoughtTogetherMenu() {
     int method = inputMethod("REKOMENDASI FREQUENTLY BOUGHT TOGETHER");
 
-    if (method < 1 || method > 3) {
+    if (method < 1 || method > 4) {
         cout << "[ERROR] Pilihan metode tidak valid.\n";
         return;
     }
@@ -478,12 +814,14 @@ void runBoughtTogetherMenu() {
 
     int n = inputNumber("Jumlah rekomendasi: ", 10);
     if (n <= 0) n = 10;
+    int dataSize = getVectorTransactionCount();
 
     if (method == 1) {
         auto t = startTimer();
         vector<ProductSummary> hasil = getFrequentlyBoughtTogetherVector(stockCode, n);
         lastRecommendationTime = stopTimer(t);
         writeRecommendationOutput("Frequently Bought Together - Vector untuk " + stockCode, hasil, lastRecommendationTime, OUTPUT_FILE, "Muncul Bersama", "");
+        appendBenchmarkStat(dataSize, 7, "Rekomendasi Frequently Bought Together", 1, lastRecommendationTime);
         printWaktu(lastRecommendationTime);
         return;
     }
@@ -493,7 +831,18 @@ void runBoughtTogetherMenu() {
         vector<ProductSummary> hasil = getFrequentlyBoughtTogetherHash(stockCode, n);
         lastHashRecommendationTime = stopTimer(t);
         writeRecommendationOutput("Frequently Bought Together - Hash Table untuk " + stockCode, hasil, lastHashRecommendationTime, OUTPUT_FILE, "Muncul Bersama", "");
+        appendBenchmarkStat(dataSize, 7, "Rekomendasi Frequently Bought Together", 2, lastHashRecommendationTime);
         printWaktu(lastHashRecommendationTime);
+        return;
+    }
+
+    if (method == 3) {
+        auto t = startTimer();
+        vector<ProductSummary> hasil = getFrequentlyBoughtTogetherAVL(stockCode, n);
+        lastAVLRecommendationTime = stopTimer(t);
+        writeRecommendationOutput("Frequently Bought Together - AVL Tree untuk " + stockCode, hasil, lastAVLRecommendationTime, OUTPUT_FILE, "Muncul Bersama", "");
+        appendBenchmarkStat(dataSize, 7, "Rekomendasi Frequently Bought Together", 3, lastAVLRecommendationTime);
+        printWaktu(lastAVLRecommendationTime);
         return;
     }
 
@@ -505,16 +854,22 @@ void runBoughtTogetherMenu() {
     vector<ProductSummary> hasilHash = getFrequentlyBoughtTogetherHash(stockCode, n);
     lastHashRecommendationTime = stopTimer(th);
 
-    writeMethodComparison("Frequently Bought Together untuk " + stockCode, "Hasil",
-                          to_string(hasilVector.size()) + " produk", lastRecommendationTime,
-                          to_string(hasilHash.size()) + " produk", lastHashRecommendationTime);
-    printWaktu(lastRecommendationTime + lastHashRecommendationTime);
+    auto ta = startTimer();
+    vector<ProductSummary> hasilAVL = getFrequentlyBoughtTogetherAVL(stockCode, n);
+    lastAVLRecommendationTime = stopTimer(ta);
+
+    writeAllMethodComparison("Frequently Bought Together untuk " + stockCode, "Hasil",
+                             to_string(hasilVector.size()) + " produk", lastRecommendationTime,
+                             to_string(hasilHash.size()) + " produk", lastHashRecommendationTime,
+                             to_string(hasilAVL.size()) + " produk", lastAVLRecommendationTime);
+    appendBenchmarkCompare(dataSize, 7, "Rekomendasi Frequently Bought Together", lastRecommendationTime, lastHashRecommendationTime, lastAVLRecommendationTime);
+    printWaktu(lastRecommendationTime + lastHashRecommendationTime + lastAVLRecommendationTime);
 }
 
 void runCustomerRecommendationMenu() {
     int method = inputMethod("REKOMENDASI BERDASARKAN CUSTOMER ID");
 
-    if (method < 1 || method > 3) {
+    if (method < 1 || method > 4) {
         cout << "[ERROR] Pilihan metode tidak valid.\n";
         return;
     }
@@ -526,12 +881,14 @@ void runCustomerRecommendationMenu() {
 
     int n = inputNumber("Jumlah rekomendasi: ", 10);
     if (n <= 0) n = 10;
+    int dataSize = getVectorTransactionCount();
 
     if (method == 1) {
         auto t = startTimer();
         vector<ProductSummary> hasil = getCustomerRecommendationsVector(customerId, n);
         lastRecommendationTime = stopTimer(t);
         writeRecommendationOutput("Rekomendasi Customer - Vector untuk " + customerId, hasil, lastRecommendationTime, OUTPUT_FILE, "Skor Rekomendasi", "");
+        appendBenchmarkStat(dataSize, 8, "Rekomendasi Berdasarkan Customer ID", 1, lastRecommendationTime);
         printWaktu(lastRecommendationTime);
         return;
     }
@@ -541,7 +898,18 @@ void runCustomerRecommendationMenu() {
         vector<ProductSummary> hasil = getCustomerRecommendationsHash(customerId, n);
         lastHashRecommendationTime = stopTimer(t);
         writeRecommendationOutput("Rekomendasi Customer - Hash Table untuk " + customerId, hasil, lastHashRecommendationTime, OUTPUT_FILE, "Skor Rekomendasi", "");
+        appendBenchmarkStat(dataSize, 8, "Rekomendasi Berdasarkan Customer ID", 2, lastHashRecommendationTime);
         printWaktu(lastHashRecommendationTime);
+        return;
+    }
+
+    if (method == 3) {
+        auto t = startTimer();
+        vector<ProductSummary> hasil = getCustomerRecommendationsAVL(customerId, n);
+        lastAVLRecommendationTime = stopTimer(t);
+        writeRecommendationOutput("Rekomendasi Customer - AVL Tree untuk " + customerId, hasil, lastAVLRecommendationTime, OUTPUT_FILE, "Skor Rekomendasi", "");
+        appendBenchmarkStat(dataSize, 8, "Rekomendasi Berdasarkan Customer ID", 3, lastAVLRecommendationTime);
+        printWaktu(lastAVLRecommendationTime);
         return;
     }
 
@@ -553,19 +921,29 @@ void runCustomerRecommendationMenu() {
     vector<ProductSummary> hasilHash = getCustomerRecommendationsHash(customerId, n);
     lastHashRecommendationTime = stopTimer(th);
 
-    writeMethodComparison("Rekomendasi Customer ID: " + customerId, "Hasil",
-                          to_string(hasilVector.size()) + " produk", lastRecommendationTime,
-                          to_string(hasilHash.size()) + " produk", lastHashRecommendationTime,
-                          "Rekomendasi dibuat dari produk yang pernah dibeli customer, lalu mencari produk lain yang sering muncul bersama produk tersebut.");
-    printWaktu(lastRecommendationTime + lastHashRecommendationTime);
+    auto ta = startTimer();
+    vector<ProductSummary> hasilAVL = getCustomerRecommendationsAVL(customerId, n);
+    lastAVLRecommendationTime = stopTimer(ta);
+
+    writeAllMethodComparison("Rekomendasi Customer ID: " + customerId, "Hasil",
+                             to_string(hasilVector.size()) + " produk", lastRecommendationTime,
+                             to_string(hasilHash.size()) + " produk", lastHashRecommendationTime,
+                             to_string(hasilAVL.size()) + " produk", lastAVLRecommendationTime,
+                             "Rekomendasi dibuat dari produk yang pernah dibeli customer, lalu mencari produk lain yang sering muncul bersama produk tersebut.");
+    appendBenchmarkCompare(dataSize, 8, "Rekomendasi Berdasarkan Customer ID", lastRecommendationTime, lastHashRecommendationTime, lastAVLRecommendationTime);
+    printWaktu(lastRecommendationTime + lastHashRecommendationTime + lastAVLRecommendationTime);
 }
 
 int main() {
-    transactions.reserve(120000);
+    int dataLimit = inputDataLimit();
+    prepareBenchmarkFile();
+
+    reserveVectorTransactions(dataLimit + 10);
+    reserveHashTransactions(dataLimit + 10);
 
     cout << "[LOADING] Membaca " << CSV_FILE << " ...\n";
     auto t0 = startTimer();
-    int loaded = loadCSV(CSV_FILE);
+    int loaded = loadCSV(CSV_FILE, dataLimit);
     double durLoad = stopTimer(t0);
 
     if (loaded == 0) {
@@ -574,10 +952,17 @@ int main() {
     }
 
     cout << "Jumlah transaksi : " << loaded << "\n";
+    cout << "Ukuran data      : " << dataLimit << " transaksi\n";
+    cout << "Vector storage   : " << getVectorTransactionCount() << " transaksi\n";
+    cout << "Hash storage     : " << getHashTransactionCount() << " transaksi\n";
+    cout << "AVL storage      : " << getAVLTransactionCount() << " transaksi\n";
     cout << "Waktu load       : " << fixed << setprecision(3) << durLoad << " ms\n";
-    cout << "Hash Table index : " << invoiceIndex.size() << " invoice, "
-         << customerIndex.size() << " customer, "
-         << stockIndex.size() << " stock code\n";
+    cout << "Hash Table index : " << getHashInvoiceIndexCount() << " invoice, "
+         << getHashCustomerIndexCount() << " customer, "
+         << getHashStockIndexCount() << " stock code\n";
+    cout << "AVL Tree index   : " << getAVLInvoiceIndexCount() << " invoice, "
+         << getAVLCustomerIndexCount() << " customer, "
+         << getAVLStockIndexCount() << " stock code\n";
 
     int pilih = -1;
     do {
@@ -624,20 +1009,7 @@ int main() {
             break;
         }
         case 9: {
-            cout << "\nTotal Data : " << transactions.size() << "\n\n";
-            cout << "Execution Time Statistics (ms)\n";
-            cout << "Insert Vector Time      : " << fixed << setprecision(3) << lastInsertTime << "\n";
-            cout << "Insert Hash Time        : " << fixed << setprecision(3) << lastHashInsertTime << "\n";
-            cout << "Search Vector Time      : " << fixed << setprecision(3) << lastSearchTime << "\n";
-            cout << "Search Hash Time        : " << fixed << setprecision(3) << lastHashSearchTime << "\n";
-            cout << "Update Vector Time      : " << fixed << setprecision(3) << lastUpdateTime << "\n";
-            cout << "Update Hash Time        : " << fixed << setprecision(3) << lastHashUpdateTime << "\n";
-            cout << "Delete Vector Time      : " << fixed << setprecision(3) << lastDeleteTime << "\n";
-            cout << "Delete Hash Time        : " << fixed << setprecision(3) << lastHashDeleteTime << "\n";
-            cout << "Show Vector Time        : " << fixed << setprecision(3) << lastShowTime << "\n";
-            cout << "Show Hash Time          : " << fixed << setprecision(3) << lastHashShowTime << "\n";
-            cout << "Recommendation Vector   : " << fixed << setprecision(3) << lastRecommendationTime << "\n";
-            cout << "Recommendation Hash     : " << fixed << setprecision(3) << lastHashRecommendationTime << "\n";
+            showBenchmarkStats();
             break;
         }
         case 0:
