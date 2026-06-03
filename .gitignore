@@ -2,4 +2,7 @@
 main
 product_recommendation
 output.txt
+benchmark.txt
 .vscode
+*.txt
+*.log

@@ -262,7 +262,7 @@ vector<ProductSummary> getFrequentlyBoughtTogetherVector(string targetStockCode,
 
 vector<ProductSummary> getCustomerRecommendationsVector(string customerId, int n) {
     vector<string> purchasedProducts;
-    vector<string> relatedInvoices;
+    vector<string> similarCustomers;
     vector<Transaction> candidateTransactions;
     vector<ProductSummary> productInfo;
 
@@ -280,17 +280,18 @@ vector<ProductSummary> getCustomerRecommendationsVector(string customerId, int n
 
     for (int i = 0; i < (int)vectorTransactions.size(); i++) {
         Transaction t = vectorTransactions[i];
-        if (binary_search(purchasedProducts.begin(), purchasedProducts.end(), t.stockCode)) {
-            relatedInvoices.push_back(t.invoiceId);
+        if (t.customerId != customerId &&
+            binary_search(purchasedProducts.begin(), purchasedProducts.end(), t.stockCode)) {
+            similarCustomers.push_back(t.customerId);
         }
     }
 
-    sort(relatedInvoices.begin(), relatedInvoices.end());
-    relatedInvoices.erase(unique(relatedInvoices.begin(), relatedInvoices.end()), relatedInvoices.end());
+    sort(similarCustomers.begin(), similarCustomers.end());
+    similarCustomers.erase(unique(similarCustomers.begin(), similarCustomers.end()), similarCustomers.end());
 
     for (int i = 0; i < (int)vectorTransactions.size(); i++) {
         Transaction t = vectorTransactions[i];
-        if (binary_search(relatedInvoices.begin(), relatedInvoices.end(), t.invoiceId) &&
+        if (binary_search(similarCustomers.begin(), similarCustomers.end(), t.customerId) &&
             !binary_search(purchasedProducts.begin(), purchasedProducts.end(), t.stockCode)) {
             candidateTransactions.push_back(t);
         }

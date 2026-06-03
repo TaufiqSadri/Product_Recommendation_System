@@ -48,6 +48,13 @@ void resetAllStructures() {
     resetAVLTransactions();
 }
 
+struct CSVLoadResult {
+    int count;
+    double vectorMs;
+    double hashMs;
+    double avlMs;
+};
+
 int loadCSV(string filename, int limit = 0) {
     ifstream file(filename);
     if (!file.is_open()) {
@@ -103,10 +110,86 @@ int loadCSV(string filename, int limit = 0) {
     return count;
 }
 
+CSVLoadResult loadCSVMeasured(string filename, int limit = 0) {
+    CSVLoadResult result;
+    result.count = 0;
+    result.vectorMs = 0.0;
+    result.hashMs = 0.0;
+    result.avlMs = 0.0;
+
+    ifstream file(filename);
+    if (!file.is_open()) {
+        cerr << "[ERROR] Tidak bisa membuka file: " << filename << "\n";
+        return result;
+    }
+
+    vector<Transaction> data;
+    if (limit > 0) data.reserve(limit);
+
+    string line;
+    getline(file, line);
+
+    while (getline(file, line)) {
+        if (limit > 0 && (int)data.size() >= limit) break;
+        if (trim(line).empty()) continue;
+
+        stringstream ss(line);
+        string token;
+        Transaction t;
+        t.recordId = 0;
+
+        if (!getline(ss, token, ';')) continue;
+        t.invoiceId = trim(token);
+
+        if (!getline(ss, token, ';')) continue;
+        t.stockCode = trim(token);
+
+        if (!getline(ss, token, ';')) continue;
+        t.description = trim(token);
+
+        if (!getline(ss, token, ';')) continue;
+        try { t.quantity = stoi(trim(token)); } catch (...) { t.quantity = 0; }
+
+        if (!getline(ss, token, ';')) continue;
+        t.invoiceDate = trim(token);
+
+        if (!getline(ss, token, ';')) continue;
+        try { t.price = stod(trim(token)); } catch (...) { t.price = 0.0; }
+
+        if (!getline(ss, token, ';')) continue;
+        t.customerId = trim(token);
+
+        if (!getline(ss, token, ';')) continue;
+        t.category = trim(token);
+
+        assignTransactionRecordId(t);
+        data.push_back(t);
+    }
+    file.close();
+
+    auto startVector = chrono::high_resolution_clock::now();
+    for (Transaction t : data) insertTransactionVector(t);
+    auto endVector = chrono::high_resolution_clock::now();
+    result.vectorMs = chrono::duration_cast<chrono::nanoseconds>(endVector - startVector).count() / 1000000.0;
+
+    auto startHash = chrono::high_resolution_clock::now();
+    for (Transaction t : data) insertTransactionHash(t);
+    auto endHash = chrono::high_resolution_clock::now();
+    result.hashMs = chrono::duration_cast<chrono::nanoseconds>(endHash - startHash).count() / 1000000.0;
+
+    auto startAVL = chrono::high_resolution_clock::now();
+    for (Transaction t : data) insertTransactionAVL(t);
+    auto endAVL = chrono::high_resolution_clock::now();
+    result.avlMs = chrono::duration_cast<chrono::nanoseconds>(endAVL - startAVL).count() / 1000000.0;
+
+    result.count = (int)data.size();
+    return result;
+}
+
 void appendOutputBlock(string title, string content, string outputFile) {
-    ofstream out(outputFile, ios::app);
+    ofstream out(outputFile);
     if (out.is_open()) {
-        out << "\n[Query] " << title << "\n";
+        out << "[Query] " << title << "\n";
         out << content;
         out << "\n";
         out.close();
@@ -116,36 +199,12 @@ void appendOutputBlock(string title, string content, string outputFile) {
     }
 }
 
-double writeAllTransactionsOutput(string outputFile) {
-    auto start = chrono::high_resolution_clock::now();
-
-    ostringstream body;
-    int no = 1;
-    vector<Transaction> allTransactions = getAllTransactionsVector();
-    for (vector<Transaction>::iterator it = allTransactions.begin(); it != allTransactions.end(); ++it) {
-        body << formatTransaction(*it, no++) << "\n";
-    }
-
-    auto end = chrono::high_resolution_clock::now();
-    long long us = chrono::duration_cast<chrono::microseconds>(end - start).count();
-    double durasi = us / 1000.0;
-
-    ostringstream content;
-    content << "Total  : " << getVectorTransactionCount() << " transaksi\n";
-    content << "Waktu  : " << fixed << setprecision(3) << durasi << " ms\n\n";
-    content << body.str();
-
-    appendOutputBlock("Semua Transaksi", content.str(), outputFile);
-
-    return durasi;
-}
-
 void writeOutput(string title, const vector<Transaction>& hasil, double durasi, string outputFile) {
     ostringstream content;
 
     content << "Total  : " << getVectorTransactionCount() << " transaksi\n";
     content << "Hasil  : " << hasil.size() << " ditemukan\n";
-    content << "Waktu  : " << fixed << setprecision(3) << durasi << " ms\n\n";
+    content << "Waktu  : " << fixed << setprecision(5) << durasi << " ms\n\n";
 
     if (hasil.empty()) {
         content << "Tidak ada data ditemukan.\n";
@@ -163,7 +222,7 @@ void writeOutputRaw(string title, string body, double durasi, string outputFile)
     ostringstream content;
 
     content << "Total  : " << getVectorTransactionCount() << " transaksi\n";
-    content << "Waktu  : " << fixed << setprecision(3) << durasi << " ms\n\n";
+    content << "Waktu  : " << fixed << setprecision(5) << durasi << " ms\n\n";
     content << body;
 
     appendOutputBlock(title, content.str(), outputFile);
@@ -176,7 +235,7 @@ void writeRecommendationOutput(string title, const vector<ProductSummary>& hasil
 
     content << "Total  : " << getVectorTransactionCount() << " transaksi\n";
     content << "Hasil  : " << hasil.size() << " produk\n";
-    content << "Waktu  : " << fixed << setprecision(3) << durasi << " ms\n\n";
+    content << "Waktu  : " << fixed << setprecision(5) << durasi << " ms\n\n";
 
     if (hasil.empty()) {
         content << "Tidak ada rekomendasi ditemukan.\n";

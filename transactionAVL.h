@@ -615,7 +615,7 @@ vector<ProductSummary> getFrequentlyBoughtTogetherAVL(string targetStockCode, in
 vector<ProductSummary> getCustomerRecommendationsAVL(string customerId, int n) {
     vector<Transaction> customerTransactions = searchByCustomerIdAVL(customerId);
     vector<string> purchasedProducts;
-    vector<string> relatedInvoices;
+    vector<string> similarCustomers;
     vector<ProductSummary> productInfo;
 
     for (Transaction t : customerTransactions) {
@@ -628,18 +628,19 @@ vector<ProductSummary> getCustomerRecommendationsAVL(string customerId, int n) {
     for (string stockCode : purchasedProducts) {
         vector<Transaction> stockTransactions = searchByStockCodeAVL(stockCode);
         for (Transaction t : stockTransactions) {
-            if (!containsStringAVL(relatedInvoices, t.invoiceId))
-                relatedInvoices.push_back(t.invoiceId);
+            if (t.customerId != customerId && !containsStringAVL(similarCustomers, t.customerId))
+                similarCustomers.push_back(t.customerId);
         }
     }
 
-    for (string invoiceId : relatedInvoices) {
-        vector<string> countedInInvoice;
-        vector<Transaction> invoiceTransactions = searchByInvoiceIdAVL(invoiceId);
+    vector<string> countedInvoiceProduct;
+    for (string similarCustomer : similarCustomers) {
+        vector<Transaction> customerItems = searchByCustomerIdAVL(similarCustomer);
 
-        for (Transaction t : invoiceTransactions) {
+        for (Transaction t : customerItems) {
+            string invoiceProductKey = t.invoiceId + "|" + t.stockCode;
             if (containsStringAVL(purchasedProducts, t.stockCode) ||
-                containsStringAVL(countedInInvoice, t.stockCode)) {
+                containsStringAVL(countedInvoiceProduct, invoiceProductKey)) {
                 continue;
             }
 
@@ -657,7 +658,7 @@ vector<ProductSummary> getCustomerRecommendationsAVL(string customerId, int n) {
                 productInfo[pos].transactionCount++;
             }
 
-            countedInInvoice.push_back(t.stockCode);
+            countedInvoiceProduct.push_back(invoiceProductKey);
         }
     }
 

@@ -27,8 +27,8 @@ chrono::high_resolution_clock::time_point benchmarkStartTimer() {
 
 double benchmarkStopTimer(chrono::high_resolution_clock::time_point start) {
     auto end = chrono::high_resolution_clock::now();
-    long long us = chrono::duration_cast<chrono::microseconds>(end - start).count();
-    return us / 1000.0;
+    long long ns = chrono::duration_cast<chrono::nanoseconds>(end - start).count();
+    return ns / 1000000.0;
 }
 
 double benchmarkMemoryKB(size_t bytes) {
@@ -87,14 +87,22 @@ vector<Transaction> readCSVSample(string filename, int limit) {
     return data;
 }
 
-void buildAllStructures(const vector<Transaction>& data) {
+void buildAllStructures(const vector<Transaction>& data, double& vectorMs, double& hashMs, double& avlMs) {
     resetAllStructures();
     reserveVectorTransactions((int)data.size() + 10);
     reserveHashTransactions((int)data.size() + 10);
 
+    auto start = benchmarkStartTimer();
     for (Transaction t : data) insertTransactionVector(t);
+    vectorMs = benchmarkStopTimer(start);
+
+    start = benchmarkStartTimer();
     for (Transaction t : data) insertTransactionHash(t);
+    hashMs = benchmarkStopTimer(start);
+
+    start = benchmarkStartTimer();
     for (Transaction t : data) insertTransactionAVL(t);
+    avlMs = benchmarkStopTimer(start);
 }
 
 Transaction makeBenchmarkTransaction(int dataSize) {
@@ -111,12 +119,17 @@ Transaction makeBenchmarkTransaction(int dataSize) {
     return t;
 }
 
+string benchmarkMenuText(int menuNo) {
+    if (menuNo == 0) return "[Load]";
+    return "[" + to_string(menuNo) + "]";
+}
+
 void writeBenchmarkRow(ofstream& out, BenchmarkRow row) {
     out << row.dataSize << ";"
-        << "[" << row.menuNo << "];"
+        << benchmarkMenuText(row.menuNo) << ";"
         << row.operation << ";"
         << row.structureName << ";"
-        << fixed << setprecision(3) << row.timeMs << ";"
+        << fixed << setprecision(5) << row.timeMs << ";"
         << fixed << setprecision(3) << row.memoryKB << "\n";
 }
 
@@ -139,7 +152,14 @@ void runBenchmarkForSize(int dataSize, ofstream& out) {
         return;
     }
 
-    buildAllStructures(data);
+    double vectorLoadTime = 0;
+    double hashLoadTime = 0;
+    double avlLoadTime = 0;
+    buildAllStructures(data, vectorLoadTime, hashLoadTime, avlLoadTime);
+
+    writeVectorRow(out, dataSize, 0, "Load Data", vectorLoadTime);
+    writeHashRow(out, dataSize, 0, "Load Data", hashLoadTime);
+    writeAVLRow(out, dataSize, 0, "Load Data", avlLoadTime);
 
     Transaction sample = data[data.size() / 2];
     Transaction insertData = makeBenchmarkTransaction(dataSize);

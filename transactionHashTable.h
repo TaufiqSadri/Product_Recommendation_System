@@ -317,7 +317,7 @@ vector<ProductSummary> getCustomerRecommendationsHash(string customerId, int n) 
     if (customer == hashCustomerIndex.end()) return result;
 
     unordered_set<string> purchasedProducts;
-    unordered_set<string> relatedInvoices;
+    unordered_set<string> similarCustomers;
     unordered_map<string, ProductSummary> productInfo;
 
     for (int recordId : customer->second) {
@@ -334,24 +334,25 @@ vector<ProductSummary> getCustomerRecommendationsHash(string customerId, int n) 
 
         for (int recordId : stock->second) {
             unordered_map<int, Transaction>::iterator found = hashTransactions.find(recordId);
-            if (found != hashTransactions.end())
-                relatedInvoices.insert(found->second.invoiceId);
+            if (found != hashTransactions.end() && found->second.customerId != customerId)
+                similarCustomers.insert(found->second.customerId);
         }
     }
 
-    for (string invoiceId : relatedInvoices) {
-        unordered_map<string, unordered_set<int> >::iterator invoice = hashInvoiceIndex.find(invoiceId);
-        if (invoice == hashInvoiceIndex.end()) continue;
+    unordered_set<string> countedInvoiceProduct;
+    for (string similarCustomer : similarCustomers) {
+        unordered_map<string, unordered_set<int> >::iterator customerRecords = hashCustomerIndex.find(similarCustomer);
+        if (customerRecords == hashCustomerIndex.end()) continue;
 
-        unordered_set<string> countedInInvoice;
-        for (int recordId : invoice->second) {
+        for (int recordId : customerRecords->second) {
             unordered_map<int, Transaction>::iterator found = hashTransactions.find(recordId);
             if (found == hashTransactions.end()) continue;
 
             Transaction t = found->second;
-            if (purchasedProducts.count(t.stockCode) || countedInInvoice.count(t.stockCode)) continue;
+            string invoiceProductKey = t.invoiceId + "|" + t.stockCode;
+            if (purchasedProducts.count(t.stockCode) || countedInvoiceProduct.count(invoiceProductKey)) continue;
 
-            countedInInvoice.insert(t.stockCode);
+            countedInvoiceProduct.insert(invoiceProductKey);
 
             if (productInfo.find(t.stockCode) == productInfo.end()) {
                 ProductSummary item;
